@@ -1,38 +1,29 @@
 package org.entcore.broker.listener;
 
-import io.vertx.core.Future;
-import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
-import io.vertx.core.logging.Logger;
-import io.vertx.core.logging.LoggerFactory;
-import org.entcore.broker.api.BrokerListener;
-import org.entcore.broker.api.dto.DummyResponseDTO;
-import org.entcore.broker.api.dto.ListenAndAnswerDTO;
-import org.entcore.broker.api.dto.ListenOnlyDTO;
+import org.entcore.broker.api.DummyResponse;
+import org.entcore.broker.api.ListenAndAnswerDTO;
+import org.entcore.broker.api.ListenOnlyDTO;
+import org.entcore.broker.nats.NATSListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DummyListener {
 
   private final Logger log = LoggerFactory.getLogger(DummyListener.class);
 
-  private final Vertx vertx;
-
   public DummyListener(final Vertx vertx) {
     this.log.info("DummyListener initialized");
-    this.vertx = vertx;
   }
 
-  @BrokerListener(subject = "ent.test.listen")
+  @NATSListener(subject = "ent.test.listen", queue = "ent")
   public void listenOnlyExample(ListenOnlyDTO request) {
-    log.info("DummyListener listenOnlyExemple called with request: " + request);
+    log.info("DummyListener listenOnlyExemple called with request: {}", request);
   }
 
-  @BrokerListener(subject = "ent.test.listen.reply")
-  public Future<DummyResponseDTO> listenAndReplyExample(ListenAndAnswerDTO request) {
-    log.info("DummyListener listenOnlyExemple called with request: " + request);
-    final Promise<DummyResponseDTO> promise = Promise.promise();
-    vertx.setTimer(1000l, e -> {
-      promise.tryComplete(new DummyResponseDTO(request.getUserId(), request.getJobId(), true));
-    });
-    return promise.future();
+  @NATSListener(subject = "ent.test.listen.reply", queue = "ent")
+  public DummyResponse listenOnlyExample(ListenAndAnswerDTO request) {
+    log.info("DummyListener listenOnlyExemple called with request: {}", request);
+    return new DummyResponse(request.getUserId(), request.getJobId(), true);
   }
 }

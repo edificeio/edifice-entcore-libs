@@ -6,13 +6,16 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Types;
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class SchemaGeneratorUtil {
 
-  public SchemaGeneratorUtil() {
+  private final Types typeUtils;
 
+  public SchemaGeneratorUtil(Types typeUtils) {
+    this.typeUtils = typeUtils;
   }
 
 
@@ -114,7 +117,9 @@ public class SchemaGeneratorUtil {
           schema.put("items", getElementTypeOfArrayLike(typeMirror));
         } else if (isMapLike(typeMirror)) {
           schema.put("type", "object");
-          schema.put("additionalProperties", getElementTypeOfMap(typeMirror));
+          final Map<String, Object> addProps = new LinkedHashMap<>(); // Use LinkedHashMap here just to keep the order of the fields
+          addProps.put("type", getElementTypeOfMap(typeMirror));
+          schema.put("additionalProperties", addProps);
         } else if(typeMirrorAsString.startsWith("io.vertx.core.Future<"))  {
           schema.putAll(getElementTypeOfFuture(typeMirror));
         } else {

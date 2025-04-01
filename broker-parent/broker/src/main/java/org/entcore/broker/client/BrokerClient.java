@@ -23,7 +23,6 @@ public interface BrokerClient {
      */
     <K> Future<Void> sendMessage(String subject, K message);
 
-
     /**
      *
      * @param subject Subject to which the message will be sent
@@ -41,9 +40,9 @@ public interface BrokerClient {
      * @param <K> Type of the message to send
      * @param <V> Type of the response
      */
-    <K, V> Future<V> request(String subject, K message);
+    <K, V> Future<V> request(String subject, K message, String replyTo);
 
-    <K, V> Future<V> request(String subject, K message, long timeout);
+    <K, V> Future<V> request(String subject, K message, String replyTo, long timeout);
 
     /**
      * Subscribes to a subject and registers a listener to handle incoming messages.<br />

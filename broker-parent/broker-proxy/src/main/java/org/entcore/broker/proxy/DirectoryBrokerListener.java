@@ -2,7 +2,10 @@ package org.entcore.broker.proxy;
 
 import io.vertx.core.Future;
 import org.entcore.broker.api.BrokerListener;
-import org.entcore.broker.api.dto.directory.*;
+import org.entcore.broker.api.dto.directory.CreateSharesRequestDTO;
+import org.entcore.broker.api.dto.directory.CreateSharesResponseDTO;
+import org.entcore.broker.api.dto.directory.DeleteSharesRequestDTO;
+import org.entcore.broker.api.dto.directory.DeleteSharesResponseDTO;
 /**
  * This interface defines the methods that will be used to listen to events from the directory broker.
  */
@@ -54,6 +57,8 @@ public interface DirectoryBrokerListener {
    */
   @BrokerListener(subject = "directory.group.find.byexternalid", proxy = true)
   Future<FindGroupByExternalIdResponseDTO> findGroupByExternalId(FindGroupByExternalIdRequestDTO request);
+  @BrokerListener(subject = "directory.shares.create", proxy = true)
+  CreateSharesResponseDTO createShares(CreateSharesRequestDTO request);
 
   /**
    * This method retrieves display names for multiple users by their ENT IDs.
@@ -78,4 +83,6 @@ public interface DirectoryBrokerListener {
    */
   @BrokerListener(subject = "directory.users.get.bygroupids", proxy = true)
   Future<GetUsersFromGroupsResponseDTO> getUsersFromGroups(GetUsersFromGroupsRequestDTO request);
+  @BrokerListener(subject = "directory.shares.delete", proxy = true)
+  DeleteSharesResponseDTO deleteShares(DeleteSharesRequestDTO request);
 }

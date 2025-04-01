@@ -16,7 +16,6 @@ public class NATSEndpoint {
   private boolean proxy;
   private boolean broadcast;
 
-  // Getters and setters
   public String getSubject() {
     return subject;
   }

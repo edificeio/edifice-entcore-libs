@@ -43,6 +43,13 @@ public @interface BrokerListener {
   String subject();
 
   /**
+   * Optional queue name for queue groups.
+   * If specified, the subscription will join this queue group.
+   * @return queue name
+   */
+  String queue() default "";
+
+  /**
    * Description of this NATS endpoint.
    * @return endpoint description
    */

@@ -6,7 +6,6 @@ package org.entcore.broker.nats.model;
 public class NATSEndpoint {
   private String subject;
   private String description;
-  private String queue;
   private String requestType;
   private Object requestSchema; // JSON Schema representation
   private String responseType;
@@ -30,14 +29,6 @@ public class NATSEndpoint {
 
   public void setDescription(String description) {
     this.description = description;
-  }
-
-  public String getQueue() {
-    return queue;
-  }
-
-  public void setQueue(String queue) {
-    this.queue = queue;
   }
 
   public String getRequestType() {
@@ -109,7 +100,6 @@ public class NATSEndpoint {
     return "NATSEndpoint{" +
       "subject='" + subject + '\'' +
       ", description='" + description + '\'' +
-      ", queue='" + queue + '\'' +
       ", requestType='" + requestType + '\'' +
       ", requestSchema=" + requestSchema +
       ", responseType='" + responseType + '\'' +

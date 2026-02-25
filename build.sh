@@ -25,6 +25,14 @@ case `uname -s` in
     fi
 esac
 
+# If DEBUG env var is set to "true" then set -x to enable debug mode
+if [ "$DEBUG" == "true" ]; then
+	set -x
+	EDIFICE_CLI_DEBUG_OPTION="--debug"
+else
+	EDIFICE_CLI_DEBUG_OPTION=""
+fi
+
 # build options
 NO_DOCKER=""
 SPRINGBOARD="recette"
@@ -106,7 +114,7 @@ EOF
   	docker compose -f build.compose.yaml rm -fsv edifice-cli
   	rm -f build.compose.yaml
   	chmod +x edifice
-  	./edifice version
+  	./edifice version $EDIFICE_CLI_DEBUG_OPTION
 }
 
 clean () {
@@ -123,7 +131,7 @@ install () {
 }
 
 buildBroker () {
-  ./edifice install --all=false --clients=true --service=false
+  ./edifice install --all=false --clients=false --client-nest=true --client-node=true --client-vertx=true --back=false --project-type=entcore --client-python=false $EDIFICE_CLI_DEBUG_OPTION
 }
 
 test () {
@@ -131,15 +139,11 @@ test () {
 }
 
 publish() {
-  version=`docker compose run --rm $USER_OPTION maven mvn $MVN_OPTS help:evaluate -Dexpression=project.version -q -DforceStdout`
-  level=`echo $version | cut -d'-' -f3`
-  case "$level" in
-    *SNAPSHOT) export nexusRepository='snapshots' ;;
-    *)         export nexusRepository='releases' ;;
-  esac
+  ./edifice publish --clients=true --dry-run=false --service=TRUE  --project-type=entcore $EDIFICE_CLI_DEBUG_OPTION
+}
 
-  docker compose run --rm  maven mvn $MVN_OPTS -DrepositoryId=ode-$nexusRepository -DskipTests --settings /var/maven/.m2/settings.xml deploy
-  ./edifice publish --clients=true --dry-run=false --service=false
+image() {
+  ./edifice image --project-type=entcore $EDIFICE_CLI_DEBUG_OPTION
 }
 
 if [ ! -e .env ]; then
@@ -165,6 +169,9 @@ do
       ;;
     publish)
       publish
+      ;;
+    image)
+      image
       ;;
     *)
       echo "Invalid argument : $param"

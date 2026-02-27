@@ -109,7 +109,7 @@ public class AuthManager extends BusModBase implements Handler<Message<JsonObjec
 
 		sessionStore = SessionStoreFactory.createSessionStore(vertx, cluster, config);
 		final String address = getOptionalStringConfig("address", "wse.session");
-		eb.consumer(address, this);
+		eb.localConsumer(address, this);
 
 		return Future.succeededFuture();
 	}

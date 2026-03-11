@@ -11,42 +11,40 @@
     "app-address" : "http://localhost:8778/broker",
     "sql": false,
     "neo4j": false,
-    "broker-type": "{{ brokerType | default('none') }}",
-    {% if brokerType is defined and brokerType == 'nats' and brokerIaEnabled is defined and brokerIaEnabled %}
-			"nats": [
-				{
-				  "name": "ent",
-				  "default": true,
-				  "routing": [],
-				  "client": {
-				  	"io.nats.client.password": "{{ brokerNatsPassword }}",
-						"io.nats.client.pinginterval": "PT15s",
-						"io.nats.client.url": "{{ brokerNatsUrl }}",
-						"io.nats.client.reconnect.max": -1,
-						"io.nats.client.username": "{{ brokerNatsUser | default('ent') }}"
-				  }
-				},
-				{
-				  "name": "ia",
-				  "default": false,
-				  "routing": ["ia.>"],
-				  "client": {
-						"io.nats.client.password": "{{ brokerIaPassword }}",
-						"io.nats.client.pinginterval": "PT15s",
-						"io.nats.client.url": "{{ brokerIaUrl }}",
-						"io.nats.client.reconnect.max": -1,
-						"io.nats.client.username": "{{ brokerIaUser | default('ent') }}"
-				  }				  
-				}
-			],
-		{% elif brokerType is defined and brokerType == 'nats' %}
-      "nats": {
-		  	"io.nats.client.password": "{{ brokerNatsPassword }}",
-				"io.nats.client.pinginterval": "PT15s",
-				"io.nats.client.url": "{{ brokerNatsUrl }}",
-				"io.nats.client.reconnect.max": -1,
-				"io.nats.client.username": "{{ brokerNatsUser | default('ent') }}"
-      },
+    "broker-type": "{{ brokerType | default('nats') }}",
+    {% if brokerType is defined and brokerType == 'nats' %}
+    "nats": [
+        {
+          "name": "ent",
+          "default": true,
+          "routing": [],
+          "client": {
+            {% if brokerNatsUser is defined %}
+            "io.nats.client.username": "{{ brokerNatsUser }}",
+            {% endif %}
+            {% if brokerNatsPassword is defined %}
+            "io.nats.client.password": "{{ brokerNatsPassword }}",
+            {% endif %}
+            "io.nats.client.pinginterval": "{{ brokerNatsPingInterval | default('PT15s')}}",
+            "io.nats.client.url": "{{ brokerNatsUrl }}",
+            "io.nats.client.reconnect.max": -1
+          }
+        }
+        {% if brokerIaEnabled is defined and brokerIaEnabled %}
+        , {
+          "name": "ia",
+          "default": false,
+          "routing": ["ia.>"],
+          "client": {
+                "io.nats.client.password": "{{ brokerIaPassword }}",
+                "io.nats.client.pinginterval": "PT15s",
+                "io.nats.client.url": "{{ brokerIaUrl }}",
+                "io.nats.client.reconnect.max": -1,
+                "io.nats.client.username": "{{ brokerIaUser | default('ent') }}"
+          }
+        }
+        {% endif %}
+    ],
     {% endif %}
     "publicConf": {
     }

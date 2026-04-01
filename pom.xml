@@ -39,6 +39,7 @@
         <module>session</module>
         <module>test</module>
         <module>broker-parent</module>
+        <module>probes</module>
     </modules>
 
     <properties>

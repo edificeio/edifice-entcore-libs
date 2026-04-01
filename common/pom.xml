@@ -14,6 +14,7 @@
 
     <properties>
         <vertxRedisVersion>4.5.22</vertxRedisVersion>
+        <zipVersion>3.2-separation-SNAPSHOT</zipVersion>
     </properties>
 
     <dependencies>
@@ -93,6 +94,13 @@
             <groupId>com.opendigitaleducation</groupId>
             <artifactId>mod-json-schema-validator</artifactId>
             <version>2.0-zookeeper-SNAPSHOT</version>
+            <scope>runtime</scope>
+            <classifier>fat</classifier>
+        </dependency>
+        <dependency>
+            <groupId>fr.wseduc</groupId>
+            <artifactId>mod-zip</artifactId>
+            <version>${zipVersion}</version>
             <scope>runtime</scope>
             <classifier>fat</classifier>
         </dependency>

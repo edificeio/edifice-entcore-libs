@@ -22,7 +22,7 @@ public class RedisClient implements IRedisClient {
     public static final String NAME_STREAM = "$name_stream";
     protected final RedisAPI client;
     protected final RedisOptions redisOptions;
-    private static final Logger log = LoggerFactory.getLogger(RedisClient.class);
+    protected Logger log = LoggerFactory.getLogger(RedisClient.class);
 
     public RedisClient(final io.vertx.redis.client.Redis redis, final RedisOptions redisOptions) {
         this.client = RedisAPI.api(redis);
@@ -70,7 +70,6 @@ public class RedisClient implements IRedisClient {
         final String protocol = isSsl ? "rediss" : "redis";
         final String masterName = redisConfig.getString("masterName", "mymaster");
         final String masterFragment = isSentinel ? "#" + masterName : "";
-        log.info("masterFragment is " + masterFragment);
         final List<String> redisConnectionStrings = new ArrayList<>();
         if (redisConfig.containsKey("hosts")) {
             final String username = redisConfig.getString("username", "");

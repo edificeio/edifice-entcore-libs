@@ -559,6 +559,8 @@ public abstract class BaseServer extends Server {
             log.info("config skin-levels = " + config.getJsonObject("skin-levels", new JsonObject()));
             serverMap.put("skin-levels", config.getJsonObject("skin-levels", new JsonObject()));
 
+			serverMap.put("smsProvider", config.getString("smsProvider"));
+
             vertx.sharedData().getLocalAsyncMap("server").onSuccess(asyncServerMap -> {
                 final List<Future<Void>> futures = new ArrayList<>();
                 serverMap.entrySet().stream().forEach(entry -> futures.add(asyncServerMap.put(entry.getKey(), entry.getValue())));

@@ -429,27 +429,42 @@ public abstract class BaseServer extends Server {
 							if (asyncResult.succeeded()) {
 								List<String> files = asyncResult.result();
 								final I18n i18n = I18n.getInstance();
+								if (files.isEmpty()) {
+									if (handler != null) {
+										handler.handle(null);
+									}
+									return;
+								}
+								final List<Future<?>> fileFutures = new ArrayList<>();
 								for (final String s : files) {
 									final Locale locale = Locale.forLanguageTag(
 											s.substring(s.lastIndexOf(File.separatorChar) + 1, s.lastIndexOf('.')));
+									final Promise<Void> filePromise = Promise.promise();
+									fileFutures.add(filePromise.future());
 									vertx.fileSystem().readFile(s, new Handler<AsyncResult<Buffer>>() {
 										@Override
 										public void handle(AsyncResult<Buffer> ar) {
-											if (ar.succeeded()) {
-												try {
-													i18n.add(domain, locale, new JsonObject(ar.result().toString()));
-													if (themeName != null) {
-														i18n.add(themeName, locale, new JsonObject(ar.result().toString()), true);
+											try {
+												if (ar.succeeded()) {
+													try {
+														i18n.add(domain, locale, new JsonObject(ar.result().toString()));
+														if (themeName != null) {
+															i18n.add(themeName, locale, new JsonObject(ar.result().toString()), true);
+														}
+													} catch (Exception e) {
+														log.error("Error loading i18n asset file : " + s, e);
 													}
-													if (handler != null) {
-														handler.handle(null);
-													}
-												} catch (Exception e) {
-													log.error("Error loading i18n asset file : " + s, e);
+												} else {
+													log.error("Error loading i18n asset file : " + s, ar.cause());
 												}
-											} else {
-												log.error("Error loading i18n asset file : " + s, ar.cause());
+											} finally {
+												filePromise.tryComplete();
 											}
+										}
+									});
+									Future.join(fileFutures).onComplete(res -> {
+										if (handler != null) {
+											handler.handle(null);
 										}
 									});
 								}

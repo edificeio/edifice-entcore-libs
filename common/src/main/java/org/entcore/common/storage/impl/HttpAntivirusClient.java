@@ -133,6 +133,7 @@ public class HttpAntivirusClient implements AntivirusClient {
 				}
 			})
 			.onFailure(exception -> {
+				log.warn("An error occurred while calling filescanner", exception);
 				handler.handle(new DefaultAsyncResult<>((Void) null));
 			});
 	}

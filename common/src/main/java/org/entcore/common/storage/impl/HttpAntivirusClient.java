@@ -125,7 +125,9 @@ public class HttpAntivirusClient implements AntivirusClient {
 			})
 			.onSuccess(response -> {
 				if (response.statusCode() != 200) {
-					log.error("Error when call scan file : " + id);
+					response.bodyHandler(e -> {
+						log.error("Error when call scan file : " + id + "\n" + e.toString());
+					});
 					final Exception exc = new Exception("Error when call scan file (" + response.statusCode() + "): " + id);
 					handler.handle(new DefaultAsyncResult<>(exc));
 				} else {

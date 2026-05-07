@@ -3,6 +3,12 @@
 pipeline {
   agent any
 
+  environment {
+    NPM_TOKEN = credentials('npm-token')
+    TIPTAP_PRO_TOKEN = credentials('tiptap-pro-token')
+    NPM_PUBLIC_TOKEN = credentials('npm-public-token')
+  }
+
   stages {
     stage("Initialization") {
       when {

@@ -1,14 +1,19 @@
 package org.entcore.common.user.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import fr.wseduc.webutils.I18n;
 import io.vertx.core.json.JsonObject;
 
 import java.util.*;
 
 public class UserPreferenceDto {
 
-
     private HomePagePreference homePage;
+    private ThemePreference theme;
+    private LanguagePreference language;
+    private ApplicationPreference apps;
+    private String lastDomain;
+
     @JsonIgnore
     private JsonObject legacyPreferences;
     @JsonIgnore
@@ -18,9 +23,8 @@ public class UserPreferenceDto {
         return legacyPreferences;
     }
 
-    public UserPreferenceDto setLegacyPreferences(JsonObject legacyPreferences) {
+    public void setLegacyPreferences(JsonObject legacyPreferences) {
         this.legacyPreferences = legacyPreferences;
-        return this;
     }
 
     public List<Application> getPreferences() {
@@ -31,31 +35,84 @@ public class UserPreferenceDto {
         return homePage;
     }
 
-    public UserPreferenceDto setHomePage(HomePagePreference homePage) {
+    public void setHomePage(HomePagePreference homePage) {
         this.homePage = homePage;
-        return this;
     }
 
-    public ApplicationPreference getApplicationPreference(Application appName) {
+    public ThemePreference getTheme() {
+        return theme;
+    }
+
+    public void setTheme(ThemePreference theme) {
+        this.theme = theme;
+    }
+
+    public LanguagePreference getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(LanguagePreference language) {
+        this.language = language;
+    }
+
+    public ApplicationPreference getApps() {
+        return apps;
+    }
+
+    public void setApps(ApplicationPreference apps) {
+        this.apps = apps;
+    }
+
+    public String getLastDomain() {
+        return lastDomain;
+    }
+
+    public void setLastDomain(String lastDomain) {
+        this.lastDomain = lastDomain;
+    }
+
+    @JsonIgnore
+    public String getCurrentLanguage() {
+        if (this.language == null) {
+            return "fr";
+        }
+        String domain = this.lastDomain;
+        if(domain == null) {
+            domain = I18n.DEFAULT_DOMAIN;
+        }
+        if(language.getLanguages().containsKey(domain)) {
+            return language.getLanguages().get(domain);
+        }
+        return language.getLanguages().get(I18n.DEFAULT_DOMAIN);
+    }
+
+    public Preference getPreference(Application appName) {
         switch (appName) {
             case HOME_PAGE: return homePage;
+            case THEME: return theme;
+            case LANGUAGE: return language;
+            case APPLICATION: return apps;
         }
-        return null;
+        return new Preference() {
+            @Override
+            public String encode() {
+                return null;
+            }
+        };
     }
 
-    public void populateApplicationPreferences(Collection<String> apps) {
+    public void populateApplicationPreferences(Collection<String> appCollection) {
         Arrays.stream(Application.values())
-              .filter(a -> apps.contains(a.getMappingName()))
+              .filter(a -> appCollection.contains(a.getMappingName()))
                 .forEach( a -> this.getPreferences().add(a));
-
     }
-
 
     public enum Application {
 
         HOME_PAGE("homePage"),
         THEME("theme"),
-        LANGUAGE("language");
+        LANGUAGE("language"),
+        APPLICATION("apps");
 
         private String mappingName;
 
@@ -66,6 +123,7 @@ public class UserPreferenceDto {
         public String getMappingName() {
             return mappingName;
         }
+
     }
 }
 

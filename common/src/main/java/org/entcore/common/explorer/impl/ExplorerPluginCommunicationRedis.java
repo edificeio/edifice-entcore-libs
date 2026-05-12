@@ -85,6 +85,7 @@ public class ExplorerPluginCommunicationRedis implements IExplorerPluginCommunic
                     });
                     log.error("Failed to push resources to stream " + stream, e);
                 })).onSuccess(sentMessages -> {
+                    log.debug("Successfully pushed messages to stream " + stream);
                     this.metricsRecorder.onSendMessageSuccess(sentMessages.size());
                 });
                 previous = tmp;

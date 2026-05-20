@@ -546,7 +546,7 @@ public abstract class BaseServer extends Server {
 
             final String[] keys = new String[]{"swift", "s3", "emailConfig", "emailValidationConfig", "mfaConfig",
                     "webviewConfig", "file-system", "neo4jConfig", "mongoConfig", "postgresConfig", "explorerConfig",
-                    "redisConfig", "oauthCache", "node-pdf-generator", "event-store", "metricsOptions", "content-transformer"};
+                    "redisConfig", "oauthCache", "node-pdf-generator", "event-store", "metricsOptions", "content-transformer", "authLocations"};
             for(final String key : keys) {
                 JsonObject value = config.getJsonObject(key);
                 if (value != null) {

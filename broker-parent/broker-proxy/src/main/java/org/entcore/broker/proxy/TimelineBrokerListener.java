@@ -2,11 +2,7 @@ package org.entcore.broker.proxy;
 
 import io.vertx.core.Future;
 import org.entcore.broker.api.BrokerListener;
-import org.entcore.broker.api.dto.timeline.RegisterNotificationBatchRequestDTO;
-import org.entcore.broker.api.dto.timeline.RegisterNotificationRequestDTO;
-import org.entcore.broker.api.dto.timeline.RegisterNotificationResponseDTO;
-import org.entcore.broker.api.dto.timeline.SendNotificationRequestDTO;
-import org.entcore.broker.api.dto.timeline.SendNotificationResponseDTO;
+import org.entcore.broker.api.dto.timeline.*;
 
 /**
  * Broker listener interface for Timeline services.
@@ -43,4 +39,14 @@ public interface TimelineBrokerListener {
    */
   @BrokerListener(subject = "timeline.notification.send", proxy = true)
   Future<SendNotificationResponseDTO> sendNotification(SendNotificationRequestDTO request);
+
+  /**
+   * Registers timeline i18n files for the Timeline system.
+   * The translations will be stored in the shared timelineEventsI18n map and be available for notifications.
+   *
+   * @param request Request object containing timeline i18n details
+   * @return Response indicating success or failure of the registration
+   */
+  @BrokerListener(subject = "timeline.i18n.register", proxy = true, broadcast = true)
+  Future<RegisterTimelineI18nResponseDTO> registerTimelineI18n(RegisterTimelineI18nRequestDTO request);
 }

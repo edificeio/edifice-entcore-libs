@@ -43,13 +43,13 @@
     </modules>
 
     <properties>
-        <revision>6.14-SNAPSHOT</revision>
+        <revision>1.0.0</revision>
         <junitVersion>4.13.2</junitVersion>
         <testContainerVersion>1.19.3</testContainerVersion>
-        <modPostgresVersion>2.1.1</modPostgresVersion>
-        <modMongoVersion>4.1.1</modMongoVersion>
-        <modJsonSchemaValidatorVersion>2.1-SNAPSHOT</modJsonSchemaValidatorVersion>
-        <webUtilsVersion>3.3-SNAPSHOT</webUtilsVersion>
+        <modPostgresVersion>2.2.0</modPostgresVersion>
+        <modMongoVersion>4.2.0</modMongoVersion>
+        <modJsonSchemaValidatorVersion>2.2.0</modJsonSchemaValidatorVersion>
+        <webUtilsVersion>3.4.0</webUtilsVersion>
         <mongodbHelperVersion>3.1.1</mongodbHelperVersion>
         <jodaTimeVersion>2.9.4</jodaTimeVersion>
         <scramVersion>2.1</scramVersion>

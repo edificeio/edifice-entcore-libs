@@ -12,6 +12,7 @@ import org.entcore.common.http.request.JsonHttpServerRequest;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -22,6 +23,7 @@ import java.util.Map;
 public class EventBrokerListenerImpl implements EventBrokerListener {
 
     private static final Logger log = LoggerFactory.getLogger(EventBrokerListenerImpl.class);
+    private final Map<String, EventStore> eventStoreCache = new HashMap<>();
 
     /**
      * Constructor with EventStore dependency
@@ -48,8 +50,8 @@ public class EventBrokerListenerImpl implements EventBrokerListener {
             
             final String eventType = request.getEventType();
             
-            // Get the EventStore using the module parameter
-            final EventStore eventStore = EventStoreFactory.getFactory().getEventStore(request.getModule());
+            final EventStore eventStore = eventStoreCache.computeIfAbsent(
+                request.getModule(), m -> EventStoreFactory.getFactory().getEventStore(m));
             
             // Always create a simulated HttpServerRequest with all available information
             SecureHttpServerRequest httpRequest = createSimulatedHttpRequest(request);

@@ -578,7 +578,8 @@ public abstract class BaseServer extends Server {
 
             vertx.sharedData().getLocalAsyncMap("server").onSuccess(asyncServerMap -> {
                 final List<Future<Void>> futures = new ArrayList<>();
-                serverMap.entrySet().stream().forEach(entry -> futures.add(asyncServerMap.put(entry.getKey(), entry.getValue())));
+                serverMap.entrySet().stream().filter((e) -> e.getValue() != null)
+						.forEach(entry -> futures.add(asyncServerMap.put(entry.getKey(), entry.getValue())));
                 Future.all(futures)
                         .onSuccess(a -> returnPromise.tryComplete())
                         .onFailure(ex -> {

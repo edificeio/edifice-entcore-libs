@@ -45,6 +45,7 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static fr.wseduc.webutils.Utils.handlerToAsyncHandler;
@@ -60,6 +61,7 @@ public class TimelineHelper {
 	private final JsonObject config;
 	private final TimelineNotificationsLoader notificationsLoader;
 	private static final Logger log = LoggerFactory.getLogger(TimelineHelper.class);
+	private static final AtomicBoolean i18nLoaded = new AtomicBoolean(false);
 
 	public TimelineHelper(Vertx vertx, EventBus eb, JsonObject config) {
 		this.eb = eb;
@@ -67,8 +69,12 @@ public class TimelineHelper {
 		this.vertx = vertx;
 		this.config = config;
 		this.notificationsLoader = TimelineNotificationsLoader.getInstance(vertx);
-		loadTimelineI18n();
-		loadAssetsTimelineDirectory();
+		// I18n is loaded into a shared async map, so it only needs to be loaded once per
+		// class loader regardless of the number of TimelineHelper instances created.
+		if (i18nLoaded.compareAndSet(false, true)) {
+			loadTimelineI18n();
+			loadAssetsTimelineDirectory();
+		}
 	}
 
 	public void notifyTimeline(HttpServerRequest request,  String notificationName,

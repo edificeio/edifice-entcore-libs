@@ -6,9 +6,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
-
-import java.util.List;
-
 /**
  * This class represents a response containing session information.
  * It includes the session details encapsulated in a SessionDto object.

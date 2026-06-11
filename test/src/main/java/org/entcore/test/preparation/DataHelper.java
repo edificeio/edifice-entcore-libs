@@ -106,6 +106,12 @@ public class DataHelper {
                             .put("profileId", profile.id)
                             .put("spgFilter", profile.name)
                             .put("name", profile.name + "s of " + structure.getName()));
+            if (structure.isDefaultAuthFederated()) {
+                sb.add("MERGE (s:Structure{id: {id}})-[:HAS_AUTH_DEFAULT]->(:AuthDefault { profile: {profile}, auth: 'FEDERATED' }) ",
+                        new JsonObject()
+                                .put("id", structure.getId())
+                                .put("profile", profile.name));
+            }
         }
         sb.add("MATCH (s:Structure{id: {id}})<-[:DEPENDS]-(spg:ProfileGroup{filter: {personnelFilter}})-[:HAS_PROFILE]->(p:Profile) " +
                       "MERGE (p)<-[:COMPOSE]-(:Function{externalId: 'ADMIN_LOCAL', id: {functionId}, name: {functionName}}) " +
@@ -138,9 +144,9 @@ public class DataHelper {
      */
     public DataHelper withUser(final UserTest user) {
         sb.add("CREATE (u:User{id: {id}, login: {login}, lastName:{lastName}, lastNameSearchField:{lastNameSearchField}, " +
-                        " firstName: {firstName}, firstNameSearchField: {firstNameSearchField}, " +
+                        " firstName: {firstName}, firstNameSearchField: {firstNameSearchField}, source: 'CSV', " +
                         " displayName: {displayName}, displayNameSearchField: {displayNameSearchField}, profiles: {profiles}," +
-                        " email: {email}, birthDate: {birthdate}})",
+                        " email: {email}, birthDate: {birthdate}, federated: {federated}, federatedIDP: {federatedIDP}})",
                 new JsonObject()
                         .put("id", user.getId())
                         .put("login", user.getLogin())
@@ -152,7 +158,10 @@ public class DataHelper {
                         .put("displayNameSearchField", sanitize(user.getDisplayName()))
                         .put("email", user.getEmail())
                         .put("birthdate", user.getBirthdate())
-                        .put("profiles", user.getProfile() == null ? null : new JsonArray().add(user.getProfile().name)));
+                        .put("profiles", user.getProfile() == null ? null : new JsonArray().add(user.getProfile().name))
+                        .put("federated", user.getFederated())
+                        .put("federatedIDP", Boolean.TRUE.equals(user.getFederated()) ? "IDP" : null));
+
         if(user.getUserBook() != null) {
             final UserBookTest ub = user.getUserBook();
             sb.add("MATCH (u:User{id: {id}}) CREATE (u)-[:USERBOOK]->(:UserBook{userid: {id}, ine: {ine} })", new JsonObject()
@@ -166,6 +175,23 @@ public class DataHelper {
                         .put("id", user.getId()));
             }
         }
+        return this;
+    }
+
+    /**
+     * Insert a node User possibly linked to a UserBook node + structure
+     * @param user User to insert
+     * @param structureId id of the strucuture of the user
+     * @return This helper
+     */
+    public DataHelper withUser(final UserTest user, final String structureId) {
+        withUser(user);
+        String profile = user.getProfile() == null ? Profile.Guest.name : user.getProfile().name;
+        sb.add("MATCH (u:User{id: {id}}), (s:Structure{id: {structureId}}) " +
+                "MERGE (u)-[:IN]->(:ProfileGroup{filter: {spgFilter}})-[:DEPENDS]->(s)", new JsonObject()
+                .put("id", user.getId())
+                .put("spgFilter", profile)
+                .put("structureId", structureId));
         return this;
     }
 

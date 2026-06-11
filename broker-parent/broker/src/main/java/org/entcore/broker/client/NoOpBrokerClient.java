@@ -66,7 +66,7 @@ public class NoOpBrokerClient implements BrokerClient {
    * Ignores any request and always returns a succeeded Future with null response.
    */
   @Override
-  public <K, V> Future<V> request(String subject, K message) {
+  public <K, V> Future<V> request(String subject, K message, String replyTo) {
     log.warn("NoOpBrokerClient.request called for subject: {} - returning null response", subject);
     return Future.succeededFuture(null);
   }
@@ -75,7 +75,7 @@ public class NoOpBrokerClient implements BrokerClient {
    * Ignores any request and always returns a succeeded Future with null response, regardless of timeout.
    */
   @Override
-  public <K, V> Future<V> request(String subject, K message, long timeout) {
+  public <K, V> Future<V> request(String subject, K message, String replyTo, long timeout) {
     log.warn("NoOpBrokerClient.request called for subject: {} with timeout: {} - returning null response", subject, timeout);
     return Future.succeededFuture(null);
   }

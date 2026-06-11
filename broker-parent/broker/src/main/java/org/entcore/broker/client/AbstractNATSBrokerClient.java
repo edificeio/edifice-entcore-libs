@@ -588,12 +588,12 @@ public abstract class AbstractNATSBrokerClient implements BrokerClient {
     }
     
     @Override
-    public <K, V> Future<V> request(String subject, K message) {
-        return this.request(subject, message, defaultTimeout);
+    public <K, V> Future<V> request(String subject, K message, String replyTo) {
+        return this.request(subject, message, replyTo, defaultTimeout);
     }
     
     @Override
-    public <K, V> Future<V> request(String subject, K message, long timeout) {
+    public <K, V> Future<V> request(String subject, K message, String replyTo, long timeout) {
         final NatsClient client = getNatsClientForSubject(subject);
         if (client == null) {
             return failedFuture("No NATS client available for subject: " + subject);

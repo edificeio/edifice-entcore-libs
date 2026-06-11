@@ -20,7 +20,6 @@ import static java.util.Collections.emptySet;
 import static java.util.Collections.singleton;
 import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
 
-import org.apache.commons.collections4.CollectionUtils;
 import org.entcore.common.explorer.ExplorerMessage;
 import org.entcore.common.explorer.ExplorerStream;
 import org.entcore.common.explorer.IExplorerFolderTree;

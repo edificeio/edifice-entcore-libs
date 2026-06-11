@@ -35,6 +35,7 @@ import io.vertx.core.shareddata.LocalMap;
 import org.entcore.common.communication.CommunicationUtils;
 import org.entcore.common.events.EventStore;
 import org.entcore.common.events.EventStoreFactory;
+import org.entcore.common.migration.AppMigrationConfiguration;
 import org.entcore.common.neo4j.Neo4j;
 import org.entcore.common.neo4j.Neo4jResult;
 import org.entcore.common.neo4j.StatementsBuilder;
@@ -73,10 +74,11 @@ public abstract class GenericShareService implements ShareService {
 	private JsonArray resourceActions;
 	private final Vertx vertx = Vertx.currentContext() != null ? Vertx.currentContext().owner() : Vertx.vertx();
 	private final EventStore eventStore;
+	private final AppMigrationConfiguration appMigrationConfiguration;
 
 
 	public GenericShareService(EventBus eb, Map<String, SecuredAction> securedActions,
-			Map<String, List<String>> groupedActions) {
+			Map<String, List<String>> groupedActions, final AppMigrationConfiguration appMigrationConfiguration) {
 		this.eb = eb;
 		this.securedActions = StartupUtils.applyOverrideRightForShare(securedActions);
 		this.groupedActions = groupedActions;
@@ -85,6 +87,7 @@ public abstract class GenericShareService implements ShareService {
 		final EventStoreFactory factory = EventStoreFactory.getFactory();
 		factory.setVertx(vertx);
 		this.eventStore = factory.getEventStore(module);
+		this.appMigrationConfiguration = appMigrationConfiguration;
 	}
 
 	protected Future<Set<String>> userIdsForGroupIds(Set<String> groupsIds, String currentUserId) {

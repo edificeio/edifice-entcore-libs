@@ -9,6 +9,7 @@ public final class UserTestBuilder {
     private String email;
     private String birthdate;
     private Profile profile;
+    private Boolean federated;
     private UserBookTest userBook;
 
     private UserTestBuilder() {
@@ -63,7 +64,12 @@ public final class UserTestBuilder {
         return this;
     }
 
+    public UserTestBuilder federated(Boolean federated) {
+        this.federated = federated;
+        return this;
+    }
+
     public UserTest build() {
-        return new UserTest(id, login, firstName, lastName, displayName, profile, userBook, email, birthdate);
+        return new UserTest(id, login, firstName, lastName, displayName, profile, userBook, email, birthdate, federated);
     }
 }

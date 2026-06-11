@@ -107,7 +107,7 @@ public class DataHelper {
                             .put("spgFilter", profile.name)
                             .put("name", profile.name + "s of " + structure.getName()));
             if (structure.isDefaultAuthFederated()) {
-                sb.add("MERGE (s:Structure{id: {id}})-[:HAS_AUTH_DEFAULT]->(:AuthDefault { profile: {profile}, auth: 'FEDERATED' }) ",
+                sb.add("MATCH (s:Structure{id: {id}}) MERGE (s)-[:HAS_AUTH_DEFAULT]->(:AuthDefault { profile: {profile}, auth: 'FEDERATED' }) ",
                         new JsonObject()
                                 .put("id", structure.getId())
                                 .put("profile", profile.name));

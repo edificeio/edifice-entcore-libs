@@ -3,6 +3,7 @@ package org.entcore.test.preparation;
 public final class StructureTestBuilder {
     private String id;
     private String name;
+    private String uai;
 
     private StructureTestBuilder() {
     }
@@ -21,7 +22,12 @@ public final class StructureTestBuilder {
         return this;
     }
 
+    public StructureTestBuilder withUai(String uai) {
+        this.uai = uai;
+        return this;
+    }
+
     public StructureTest build() {
-        return new StructureTest(id, name);
+        return new StructureTest(id, name, false, uai);
     }
 }

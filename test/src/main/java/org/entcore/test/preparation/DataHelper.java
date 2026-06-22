@@ -95,9 +95,10 @@ public class DataHelper {
      * @return
      */
     public DataHelper withStructure(final StructureTest structure) {
-        sb.add("CREATE (:Structure{id: {id}, name: {name}})", new JsonObject()
+        sb.add("CREATE (:Structure{id: {id}, name: {name}, UAI: {uai}})", new JsonObject()
             .put("id", structure.getId())
-            .put("name", structure.getName()));
+            .put("name", structure.getName())
+            .put("uai", structure.getUai()));
         for (final Profile profile : Profile.values()) {
             sb.add("MATCH (s:Structure{id: {id}}), (p:Profile{id: {profileId}})" +
                         " MERGE (s)<-[:DEPENDS]-(spg:Group:ProfileGroup{filter: {spgFilter}, name: {name}})-[:HAS_PROFILE]->(p)",

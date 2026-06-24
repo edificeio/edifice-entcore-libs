@@ -11,10 +11,11 @@ public class UserTest {
     private final String email;
     private final String birthdate;
     private final Boolean federated;
+    private final String activationCode;
 
     public UserTest(final String id, final String login, final String firstName, final String lastName,
                     final String displayName, final Profile profile, final UserBookTest userBook,
-                    final String email, final String birthDate, Boolean federated) {
+                    final String email, final String birthDate, Boolean federated, final String activationCode) {
         this.id = id;
         this.login = login;
         this.firstName = firstName;
@@ -25,6 +26,7 @@ public class UserTest {
         this.email = email;
         this.birthdate = birthDate;
         this.federated = federated;
+        this.activationCode = activationCode;
     }
 
     public String getId() {
@@ -61,5 +63,9 @@ public class UserTest {
 
     public Boolean getFederated() {
         return federated;
+    }
+
+    public String getActivationCode() {
+        return activationCode;
     }
 }

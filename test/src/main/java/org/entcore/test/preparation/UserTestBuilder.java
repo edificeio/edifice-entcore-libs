@@ -10,6 +10,7 @@ public final class UserTestBuilder {
     private String birthdate;
     private Profile profile;
     private Boolean federated;
+    private String activationCode;
     private UserBookTest userBook;
 
     private UserTestBuilder() {
@@ -69,7 +70,12 @@ public final class UserTestBuilder {
         return this;
     }
 
+    public UserTestBuilder activationCode(String activationCode) {
+        this.activationCode = activationCode;
+        return this;
+    }
+
     public UserTest build() {
-        return new UserTest(id, login, firstName, lastName, displayName, profile, userBook, email, birthdate, federated);
+        return new UserTest(id, login, firstName, lastName, displayName, profile, userBook, email, birthdate, federated, activationCode);
     }
 }

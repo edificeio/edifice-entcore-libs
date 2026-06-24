@@ -146,7 +146,8 @@ public class DataHelper {
         sb.add("CREATE (u:User{id: {id}, login: {login}, lastName:{lastName}, lastNameSearchField:{lastNameSearchField}, " +
                         " firstName: {firstName}, firstNameSearchField: {firstNameSearchField}, source: 'CSV', " +
                         " displayName: {displayName}, displayNameSearchField: {displayNameSearchField}, profiles: {profiles}," +
-                        " email: {email}, birthDate: {birthdate}, federated: {federated}, federatedIDP: {federatedIDP}})",
+                        " email: {email}, birthDate: {birthdate}, federated: {federated}, federatedIDP: {federatedIDP}," +
+                        " activationCode: {activationCode}})",
                 new JsonObject()
                         .put("id", user.getId())
                         .put("login", user.getLogin())
@@ -160,7 +161,8 @@ public class DataHelper {
                         .put("birthdate", user.getBirthdate())
                         .put("profiles", user.getProfile() == null ? null : new JsonArray().add(user.getProfile().name))
                         .put("federated", user.getFederated())
-                        .put("federatedIDP", Boolean.TRUE.equals(user.getFederated()) ? "IDP" : null));
+                        .put("federatedIDP", Boolean.TRUE.equals(user.getFederated()) ? "IDP" : null)
+                        .put("activationCode", user.getActivationCode()));
 
         if(user.getUserBook() != null) {
             final UserBookTest ub = user.getUserBook();

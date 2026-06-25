@@ -44,6 +44,7 @@ import java.util.stream.Collectors;
 
 import static fr.wseduc.webutils.Utils.getOrElse;
 import static io.vertx.core.Future.failedFuture;
+import static java.util.Optional.ofNullable;
 
 public class AuthManager extends BusModBase implements Handler<Message<JsonObject>> {
 
@@ -65,10 +66,11 @@ public class AuthManager extends BusModBase implements Handler<Message<JsonObjec
 		super.start();
 		final SharedDataHelper sharedDataHelper = SharedDataHelper.getInstance();
 		sharedDataHelper.init(vertx);
-		sharedDataHelper.<String, String>getLocalMulti("server", "signKey", "sameSiteValue", "node")
+		sharedDataHelper.<String, String>getLocalMulti("server", "signKey", "sameSiteValue")
 			.compose(serverConfig -> {
 				CookieHelper.getInstance().init(
-						serverConfig.get("signKey"), serverConfig.get("sameSiteValue"), log);
+						ofNullable(serverConfig.get("signKey")).orElse(config.getString("key")),
+						ofNullable(serverConfig.get("sameSiteValue")).orElse(config.getString("sameSiteValue", "Strict")), log);
 				return initSession(config.getMap())
 						.onComplete(startPromise);
 			})

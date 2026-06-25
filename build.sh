@@ -147,7 +147,7 @@ publish() {
   esac
 
   docker compose run --rm  maven mvn $MVN_OPTS -DrepositoryId=ode-$nexusRepository -DskipTests --settings /var/maven/.m2/settings.xml deploy
-  ./edifice publish --clients=true --dry-run=false --service=TRUE  --project-type=entcore $EDIFICE_CLI_DEBUG_OPTION
+  ./edifice publish --clients=true --dry-run=false --service=false  --project-type=entcore $EDIFICE_CLI_DEBUG_OPTION
 }
 
 

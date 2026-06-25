@@ -19,6 +19,7 @@
 
 package org.entcore.common.search;
 
+import fr.wseduc.bus.SingleConsumerExecutor;
 import fr.wseduc.webutils.Either;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
@@ -37,18 +38,20 @@ import java.util.List;
  */
 public class SearchingHandler implements Handler<Message<JsonObject>> {
 
+	private static final Logger log = LoggerFactory.getLogger(SearchingHandler.class);
 	private SearchingEvents searchingEvents;
 	private final EventBus eb;
-	private static final Logger log = LoggerFactory.getLogger(SearchingHandler.class);
+	private final SingleConsumerExecutor executor = new SingleConsumerExecutor();
+	private String appName;
 
 	public SearchingHandler(EventBus eb) {
-		this.eb = eb;
-		this.searchingEvents = new LogSearchingEvents();
+		this(new LogSearchingEvents(), eb);
 	}
 
 	public SearchingHandler(SearchingEvents searchingEvents, EventBus eb) {
 		this.eb = eb;
 		this.searchingEvents = searchingEvents;
+		this.appName = searchingEvents.getClass().getSimpleName();
 	}
 
 	@Override
@@ -62,35 +65,34 @@ public class SearchingHandler implements Handler<Message<JsonObject>> {
 		final JsonArray columnsHeader = message.body().getJsonArray("columnsHeader", new JsonArray());
 		final List<String> appFilters = message.body().getJsonArray("appFilters", new JsonArray()).getList();
 		final String locale = message.body().getString("locale", "fr");
-
-		searchingEvents.searchResource(appFilters, userId, groupIds, searchWords, page, limit, columnsHeader, locale, new Handler<Either<String, JsonArray>>() {
-			@Override
-			public void handle(Either<String, JsonArray> event) {
-				if (event.isRight()) {
-					final String address = "search." + searchId;
-					final JsonObject message = new JsonObject().put("application", searchingEvents.getClass().getSimpleName());
-					message.put("results", event.right().getValue());
-					eb.request(address, message, new DeliveryOptions().setSendTimeout(5000l),
-							new Handler<AsyncResult<Message<JsonObject>>>() {
-								@Override
-								public void handle(AsyncResult<Message<JsonObject>> res) {
-									if (res != null && res.succeeded()) {
-										if (!"ok".equals(res.result().body().getString("message"))) {
-											log.error(res.result().body().getString("message"));
-										}
-									}
-								}
-							});
-				} else {
-					log.error("Failure of the research module : " + searchingEvents.getClass().getSimpleName() +
-							"; message : " + event.left().getValue());
+		executor.ensureSingle("search_engine_" + searchId + "_" + appName, () -> {
+			searchingEvents.searchResource(appFilters, userId, groupIds, searchWords, page, limit, columnsHeader, locale, new Handler<Either<String, JsonArray>>() {
+				@Override
+				public void handle(Either<String, JsonArray> event) {
+					if (event.isRight()) {
+						final String address = "search." + searchId;
+						final JsonObject message = new JsonObject().put("application", searchingEvents.getClass().getSimpleName());
+						message.put("results", event.right().getValue());
+						eb.request(address, message, new DeliveryOptions().setSendTimeout(5000l),
+                                (Handler<AsyncResult<Message<JsonObject>>>) res -> {
+                                    if (res != null && res.succeeded()) {
+                                        if (!"ok".equals(res.result().body().getString("message"))) {
+                                            log.error(res.result().body().getString("message"));
+                                        }
+                                    }
+                                });
+					} else {
+						log.error("Failure of the research module : " + searchingEvents.getClass().getSimpleName() +
+								"; message : " + event.left().getValue());
+					}
 				}
-			}
+			});
 		});
 	}
 
 	public void setSearchingEvents(SearchingEvents searchingEvents) {
 		this.searchingEvents = searchingEvents;
+		this.appName = searchingEvents.getClass().getSimpleName();
 	}
 
 }

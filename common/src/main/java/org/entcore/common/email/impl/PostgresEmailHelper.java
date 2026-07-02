@@ -9,6 +9,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import org.apache.commons.lang3.NotImplementedException;
+import org.entcore.common.email.MassCreateResults;
 import org.entcore.common.http.BaseServer;
 import org.entcore.common.user.UserUtils;
 
@@ -59,7 +60,7 @@ public interface PostgresEmailHelper {
         }
     }
 
-    default Future<PostgresEmailSender.MassCreateResults> massCreate(List<PostgresEmailDto> mails) {
+    default Future<MassCreateResults> massCreate(List<PostgresEmailDto> mails) {
         throw new NotImplementedException();
     }
 

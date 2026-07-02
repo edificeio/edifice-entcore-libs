@@ -101,7 +101,7 @@ public class EmailFactory {
 		return getSenderWithPriority(PRIORITY_NORMAL);
 	}
 
-	public EmailSender getSenderWithPriority(int priority) {
+	public MassEmailSender getSenderWithPriority(int priority) {
 		EmailSender sender = null;
 		if (config != null && config.getString("type") != null){
 			switch (config.getString("type")) {
@@ -137,7 +137,22 @@ public class EmailFactory {
 		} else {
 			sender = new SmtpSender(vertx);
 		}
-		return sender;
+		return toMassEmailSender(sender);
+	}
+
+	/**
+	 * Adapts any {@link EmailSender} to a {@link MassEmailSender}: senders that already
+	 * support bulk sending (i.e. {@link PostgresEmailSender}) are returned as-is, others
+	 * are wrapped in a {@link SimpleMassEmailSender} that loops over {@code sendEmail}.
+	 */
+	private MassEmailSender toMassEmailSender(EmailSender sender) {
+		if (sender == null) {
+			return null;
+		}
+		if (sender instanceof MassEmailSender) {
+			return (MassEmailSender) sender;
+		}
+		return new SimpleMassEmailSender(sender);
 	}
 
 }

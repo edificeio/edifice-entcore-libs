@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import fr.wseduc.mongodb.MongoDb;
+import org.entcore.common.email.MassCreateResults;
 
 public class PostgresEmailHelperDefault implements PostgresEmailHelper {
     static Logger log = LoggerFactory.getLogger(org.entcore.common.email.impl.PostgresEmailHelperDefault.class);
@@ -164,9 +165,9 @@ public class PostgresEmailHelperDefault implements PostgresEmailHelper {
     }
 
     @Override
-    public Future<PostgresEmailSender.MassCreateResults> massCreate(List<PostgresEmailDto> mails) {
-        Future<PostgresEmailSender.MassCreateResults> futureTransaction = Future.succeededFuture();
-        PostgresEmailSender.MassCreateResults result = new PostgresEmailSender.MassCreateResults();
+    public Future<MassCreateResults> massCreate(List<PostgresEmailDto> mails) {
+        Future<MassCreateResults> futureTransaction = Future.succeededFuture();
+        MassCreateResults result = new MassCreateResults();
         List<List<PostgresEmailDto>> list = Lists.partition(mails, 250);
 
         LocalDateTime now = LocalDateTime.now();

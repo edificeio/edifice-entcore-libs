@@ -15,18 +15,19 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
+import org.entcore.common.email.MassCreateResults;
+import org.entcore.common.email.MassEmailSender;
 import org.entcore.common.http.BaseServer;
 import org.entcore.common.user.UserUtils;
 
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static fr.wseduc.webutils.DefaultAsyncResult.handleAsyncError;
 import static fr.wseduc.webutils.DefaultAsyncResult.handleAsyncResult;
 
-public class PostgresEmailSender implements EmailSender {
+public class PostgresEmailSender implements MassEmailSender {
     protected static final Logger logger = LoggerFactory.getLogger(PostgresEmailSender.class);
     private final EmailSender oldMailSender;
     private final Renders renders;
@@ -266,6 +267,7 @@ public class PostgresEmailSender implements EmailSender {
         }
     }
 
+    @Override
     public Future<MassCreateResults> sendEmails(List<PostgresEmailDto> mails) {
         for ( PostgresEmailDto mail : mails) {
             mail.setPriority(priority);
@@ -309,20 +311,5 @@ public class PostgresEmailSender implements EmailSender {
             future.complete(mail);
         }
         return future.future();
-    }
-
-    public static class MassCreateResults {
-
-        private final AtomicInteger success =  new AtomicInteger(0);
-        private final AtomicInteger failure =  new AtomicInteger(0);
-
-        public AtomicInteger getSuccess() {
-            return success;
-        }
-
-        public AtomicInteger getFailure() {
-            return failure;
-        }
-
     }
 }

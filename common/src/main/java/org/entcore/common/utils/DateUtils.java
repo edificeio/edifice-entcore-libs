@@ -25,7 +25,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 
-import javax.xml.bind.DatatypeConverter;
+import java.time.OffsetDateTime;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -179,7 +179,7 @@ public final class DateUtils {
 
     public static Date parseDateTime(String date) {
         if (!StringUtils.isEmpty(date)) {
-            return DatatypeConverter.parseDateTime(date).getTime();
+            return Date.from(OffsetDateTime.parse(date).toInstant());
         }
         return null;
     }

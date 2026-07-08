@@ -7,6 +7,7 @@ import org.entcore.common.schema.Source;
 import org.entcore.common.schema.users.User;
 import org.entcore.common.schema.utils.matchers.Matcher;
 import org.entcore.common.schema.utils.matchers.NodeMatcher;
+import org.entcore.common.schema.utils.matchers.IdentifierMatcher;
 import org.entcore.common.schema.utils.matchers.SourceMatcher;
 import org.entcore.common.schema.utils.matchers.UniversalMatcher;
 import org.entcore.common.schema.utils.matchers.CompoundMatcher;
@@ -22,6 +23,9 @@ import io.vertx.core.json.JsonObject;
 public class Structure implements IdObject {
     public final Id<Structure, String> id;
     public final ExternalId<Structure>externalId;
+
+    private static final String USER_MANAGED_MARKER = "\"managedBy\":\"USER\"";
+    private static final String STRUCTURE_MANAGED_MARKER = "\"managedBy\":\"STRUCTURE\"";
 
     public Structure(String id)
     {
@@ -79,7 +83,53 @@ public class Structure implements IdObject {
 
         tx.add(query, params, promise);
 
+        applyStructureManagedPreferences(tx, usersMatcher, structuresMatcher);
+
         return promise.future();
+    }
+
+    public static Future<JsonArray> attach(TransactionHelper tx, String userId, String structureId) {
+        return attach(tx,
+            new IdentifierMatcher<User>(new Id<User, String>(userId)),
+            new IdentifierMatcher<Structure>(new Id<Structure, String>(structureId)));
+    }
+
+    public static Future<JsonArray> applyStructureManagedPreferences(TransactionHelper tx, NodeMatcher<User> usersMatcher, NodeMatcher<Structure> structuresMatcher) {
+        Promise<JsonArray> promise = Promise.promise();
+
+        usersMatcher.setNodeName("u");
+        structuresMatcher.setNodeName("s");
+
+        String query =
+            "MATCH (s:Structure)<-[:DEPENDS]-(:ProfileGroup)<-[:IN]-(u:User) " +
+            "WHERE " + structuresMatcher + " AND " + usersMatcher + " " +
+            "OPTIONAL MATCH (u)-[:PREFERS]->(uac:UserAppConf) " +
+            "WITH s, u, uac, " +
+            "  (s.notificationTimezone IS NOT NULL AND s.notificationTimezone <> '' AND (uac IS NULL OR uac.timezone IS NULL OR NOT uac.timezone CONTAINS {userManagedMarker})) AS shouldUpdateTimezone, " +
+            "  (s.notificationQuietHours IS NOT NULL AND s.notificationQuietHours <> '' AND (uac IS NULL OR uac.quietHours IS NULL OR NOT uac.quietHours CONTAINS {userManagedMarker})) AS shouldUpdateQuietHours, " +
+            "  ((s.notificationTimezone IS NULL OR s.notificationTimezone = '') AND uac IS NOT NULL AND uac.timezone IS NOT NULL AND uac.timezone CONTAINS {structureManagedMarker}) AS shouldClearTimezone, " +
+            "  ((s.notificationQuietHours IS NULL OR s.notificationQuietHours = '') AND uac IS NOT NULL AND uac.quietHours IS NOT NULL AND uac.quietHours CONTAINS {structureManagedMarker}) AS shouldClearQuietHours " +
+            "WHERE shouldUpdateTimezone OR shouldUpdateQuietHours OR shouldClearTimezone OR shouldClearQuietHours " +
+            "MERGE (u)-[:PREFERS]->(uac2:UserAppConf) " +
+            "FOREACH (_ IN CASE WHEN shouldUpdateTimezone THEN [1] ELSE [] END | SET uac2.timezone = s.notificationTimezone) " +
+            "FOREACH (_ IN CASE WHEN shouldUpdateQuietHours THEN [1] ELSE [] END | SET uac2.quietHours = s.notificationQuietHours) " +
+            "FOREACH (_ IN CASE WHEN shouldClearTimezone THEN [1] ELSE [] END | SET uac2.timezone = null) " +
+            "FOREACH (_ IN CASE WHEN shouldClearQuietHours THEN [1] ELSE [] END | SET uac2.quietHours = null) ";
+
+        JsonObject params = new JsonObject()
+            .put("userManagedMarker", USER_MANAGED_MARKER)
+            .put("structureManagedMarker", STRUCTURE_MANAGED_MARKER);
+        structuresMatcher.addParams(params);
+        usersMatcher.addParams(params);
+        tx.add(query, params, promise);
+
+        return promise.future();
+    }
+
+    public static Future<JsonArray> applyStructureManagedPreferences(TransactionHelper tx, String userId, String structureId) {
+        return applyStructureManagedPreferences(tx,
+            new IdentifierMatcher<User>(new Id<User, String>(userId)),
+            new IdentifierMatcher<Structure>(new Id<Structure, String>(structureId)));
     }
 
     // Detach a user from a structure

@@ -11,6 +11,9 @@
     </parent>
 
     <artifactId>session</artifactId>
+    <properties>
+        <modMongoVersion>5.0-SNAPSHOT</modMongoVersion>
+    </properties>
 
     <dependencies>
         <dependency>

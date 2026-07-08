@@ -23,6 +23,8 @@ public class Structure implements IdObject {
     public final Id<Structure, String> id;
     public final ExternalId<Structure>externalId;
 
+    private static final String USER_MANAGED_MARKER = "\"managedBy\":\"USER\"";
+
     public Structure(String id)
     {
         this(id, null);
@@ -78,6 +80,24 @@ public class Structure implements IdObject {
         structuresMatcher.addParams(params);
 
         tx.add(query, params, promise);
+
+        // Update user preferences with structure notification settings if they are not already set
+        String prefsQuery =
+            "MATCH (s:Structure)<-[:DEPENDS]-(:ProfileGroup)<-[:IN]-(u:User) " +
+            "WHERE " + structuresMatcher + " AND " + usersMatcher + " " +
+            "AND (s.notificationTimezone IS NOT NULL OR s.notificationQuietHours IS NOT NULL) " +
+            "OPTIONAL MATCH (u)-[:PREFERS]->(uac:UserAppConf) " +
+            "WITH s, u, uac, " +
+            "  (s.notificationTimezone IS NOT NULL AND (uac IS NULL OR uac.timezone IS NULL OR NOT uac.timezone CONTAINS {userManagedMarker})) AS shouldUpdateTimezone, " +
+            "  (s.notificationQuietHours IS NOT NULL AND (uac IS NULL OR uac.quietHours IS NULL OR NOT uac.quietHours CONTAINS {userManagedMarker})) AS shouldUpdateQuietHours " +
+            "WHERE shouldUpdateTimezone OR shouldUpdateQuietHours " +
+            "MERGE (u)-[:PREFERS]->(uac2:UserAppConf) " +
+            "FOREACH (_ IN CASE WHEN shouldUpdateTimezone THEN [1] ELSE [] END | SET uac2.timezone = s.notificationTimezone) " +
+            "FOREACH (_ IN CASE WHEN shouldUpdateQuietHours THEN [1] ELSE [] END | SET uac2.quietHours = s.notificationQuietHours) ";
+        JsonObject prefsParams = new JsonObject().put("userManagedMarker", USER_MANAGED_MARKER);
+        structuresMatcher.addParams(prefsParams);
+        usersMatcher.addParams(prefsParams);
+        tx.add(prefsQuery, prefsParams);
 
         return promise.future();
     }

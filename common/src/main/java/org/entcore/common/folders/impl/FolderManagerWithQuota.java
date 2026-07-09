@@ -4,6 +4,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import io.vertx.core.*;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 
 import org.entcore.common.folders.ElementQuery;
 import org.entcore.common.folders.ElementShareOperations;
@@ -20,6 +22,7 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 
 public class FolderManagerWithQuota implements FolderManager {
+	private static final Logger log = LoggerFactory.getLogger(FolderManagerWithQuota.class);
 	protected final QuotaService quotaService;
 	protected final FolderManager folderManager;
 	protected final EventBus eventBus;
@@ -304,7 +307,11 @@ public class FolderManagerWithQuota implements FolderManager {
 		Promise<JsonArray> future = Promise.promise();
 		this.folderManager.deleteByQuery(query, user, future);
 		future.future()
-			.compose(deleted -> updateQuotaForDelete(user.map(UserInfos::getUserId), deleted))
+			.compose(deleted -> updateQuotaForDelete(user.map(UserInfos::getUserId), deleted)
+				.recover(err -> {
+					log.warn("[FolderManagerWithQuota] Quota update failed after deleteByQuery (files are deleted): " + err);
+					return Future.succeededFuture(deleted);
+				}))
 			.onComplete(handler);
 	}
 

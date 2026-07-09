@@ -7,6 +7,7 @@ import org.entcore.common.schema.Source;
 import org.entcore.common.schema.users.User;
 import org.entcore.common.schema.utils.matchers.Matcher;
 import org.entcore.common.schema.utils.matchers.NodeMatcher;
+import org.entcore.common.schema.utils.matchers.IdentifierMatcher;
 import org.entcore.common.schema.utils.matchers.SourceMatcher;
 import org.entcore.common.schema.utils.matchers.UniversalMatcher;
 import org.entcore.common.schema.utils.matchers.CompoundMatcher;
@@ -81,8 +82,24 @@ public class Structure implements IdObject {
 
         tx.add(query, params, promise);
 
-        // Update user preferences with structure notification settings if they are not already set
-        String prefsQuery =
+        applyStructureManagedPreferences(tx, usersMatcher, structuresMatcher);
+
+        return promise.future();
+    }
+
+    public static Future<JsonArray> attach(TransactionHelper tx, String userId, String structureId) {
+        return attach(tx,
+            new IdentifierMatcher<User>(new Id<User, String>(userId)),
+            new IdentifierMatcher<Structure>(new Id<Structure, String>(structureId)));
+    }
+
+    public static Future<JsonArray> applyStructureManagedPreferences(TransactionHelper tx, NodeMatcher<User> usersMatcher, NodeMatcher<Structure> structuresMatcher) {
+        Promise<JsonArray> promise = Promise.promise();
+
+        usersMatcher.setNodeName("u");
+        structuresMatcher.setNodeName("s");
+
+        String query =
             "MATCH (s:Structure)<-[:DEPENDS]-(:ProfileGroup)<-[:IN]-(u:User) " +
             "WHERE " + structuresMatcher + " AND " + usersMatcher + " " +
             "AND (s.notificationTimezone IS NOT NULL OR s.notificationQuietHours IS NOT NULL) " +
@@ -94,12 +111,19 @@ public class Structure implements IdObject {
             "MERGE (u)-[:PREFERS]->(uac2:UserAppConf) " +
             "FOREACH (_ IN CASE WHEN shouldUpdateTimezone THEN [1] ELSE [] END | SET uac2.timezone = s.notificationTimezone) " +
             "FOREACH (_ IN CASE WHEN shouldUpdateQuietHours THEN [1] ELSE [] END | SET uac2.quietHours = s.notificationQuietHours) ";
-        JsonObject prefsParams = new JsonObject().put("userManagedMarker", USER_MANAGED_MARKER);
-        structuresMatcher.addParams(prefsParams);
-        usersMatcher.addParams(prefsParams);
-        tx.add(prefsQuery, prefsParams);
+
+        JsonObject params = new JsonObject().put("userManagedMarker", USER_MANAGED_MARKER);
+        structuresMatcher.addParams(params);
+        usersMatcher.addParams(params);
+        tx.add(query, params, promise);
 
         return promise.future();
+    }
+
+    public static Future<JsonArray> applyStructureManagedPreferences(TransactionHelper tx, String userId, String structureId) {
+        return applyStructureManagedPreferences(tx,
+            new IdentifierMatcher<User>(new Id<User, String>(userId)),
+            new IdentifierMatcher<Structure>(new Id<Structure, String>(structureId)));
     }
 
     // Detach a user from a structure

@@ -173,6 +173,22 @@ public interface Storage {
      */
   Future<Void> copyDirectoryToFs(final String srcDir, final String targetDir);
 
+	/**
+	 * Move a file <b>with the specified path</b> from the filesystem to the storage.
+	 * @param srcFile Path on the filesystem.
+	 * @param targetFile Path on the underlying storage system.
+	 * @return A future that completes when the move has been completed
+	 */
+  Future<Void> moveFsFile(final String srcFile, final String targetFile);
+
+  /**
+   * Copy a file <b>with the specified path</b> from the storage to the filesystem.
+   * @param src Path on the storage.
+   * @param target Path on the filesystem.
+   * @return A future that completes when the copy has been completed
+   */
+  Future<Void> copyFileToFs(final String src, final String target);
+
   /**
    * Move recursively everything from {@code srcPath} on the filesystem to {@code destPath} in the target storage.
    * @param srcPath Absolute path from the filesystem

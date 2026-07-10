@@ -499,6 +499,31 @@ public class S3Storage implements Storage {
       .compose(e -> fs.deleteRecursive(srcPath, true))
       .mapEmpty();
   }
+    @Override
+    public Future<Void> moveFsFile(String srcFile, String targetFile) {
+        log.debug("Copying from " + srcFile + " to " + targetFile);
+        return s3Client.writeFromFileSystem(srcFile, targetFile)
+        .compose(e -> fs.delete(srcFile)
+                        .onSuccess(h -> log.debug("Deleted " + srcFile))
+                        .onFailure(h -> log.warn("Could not delete " + srcFile, e)));
+    }
+
+	@Override
+	public Future<Void> copyFileToFs(String src, String target) {
+        log.debug("Copying from " + src + " to " + target);
+        final Promise<Void> promise = Promise.promise();
+        this.s3Client.writeToFileSystemWithId(src, target, e -> {
+            if(e.succeeded()) {
+                    log.debug("Successfully downloaded " + src + " to " + target);
+                    promise.complete();
+                } else {
+                    log.error("could not download " + src + " to " + target, e.cause());
+                    promise.fail(e.cause());
+                }
+            }
+        );
+        return promise.future();
+    }
 
   private void moveFsEntriesToS3(final List<String> children, final String prefix, int childIndex, final Promise<Void> promise) {
     if(childIndex >= children.size()) {
@@ -528,4 +553,5 @@ public class S3Storage implements Storage {
         .onFailure(promise:: fail);
     }
   }
+
 }

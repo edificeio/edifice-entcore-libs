@@ -976,7 +976,38 @@ public class FileStorage implements Storage {
         return moveOrCopyDirectoryToFs(srcDir, targetDir, true);
     }
 
-  private Future<Void> moveOrCopyDirectoryToFs(final String srcDir, final String targetDir, final boolean deleteAfterMove) {
+	@Override
+	public Future<Void> moveFsFile(String srcFile, String targetFile) {
+		return moveOrCopyFileToFs(srcFile, targetFile, true);
+	}
+
+	@Override
+	public Future<Void> copyFileToFs(String src, String target) {
+		return moveOrCopyFileToFs(src, target, false);
+	}
+
+	private Future<Void> moveOrCopyFileToFs(String srcFile, String targetFile, boolean deleteAfterMove) {
+		final Future<Void> future;
+		if(srcFile.equals(targetFile)) {
+			// Nothing to do
+			future = Future.succeededFuture();
+		} else {
+			future = fs.mkdirs(FileUtils.getParentPath(targetFile))
+			.compose(e -> {
+				if(deleteAfterMove) {
+					return fs.move(srcFile, targetFile);
+				} else {
+					return fs.copy(srcFile, targetFile);
+				}
+			});
+		}
+		return future;
+	}
+
+
+
+
+	private Future<Void> moveOrCopyDirectoryToFs(final String srcDir, final String targetDir, final boolean deleteAfterMove) {
     final Future<Void> future;
     if(srcDir.equals(targetDir)) {
       // Nothing to do

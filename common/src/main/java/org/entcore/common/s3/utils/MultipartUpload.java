@@ -275,8 +275,17 @@ public class MultipartUpload {
                 }
             })
             .onFailure(exception -> {
+                chunk.incrementRetryIndex();
+
                 log.warn("An exception occurred while uploading file=" + id + " with uploadId=" + uploadId, exception);
-                handler.handle(null);
+
+                if (chunk.getRetryIndex() < 6) {
+                    uploadPart(id, uploadId, chunk, handler);
+                }
+                else {
+                    log.warn("The upload of file=" + id + " with uploadId=" + uploadId + " was retried too many times (" + chunk.getRetryIndex() + ")");
+                    handler.handle(null);
+                }
             });
     }
 

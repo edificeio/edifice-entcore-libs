@@ -375,8 +375,8 @@ public class S3Client {
 					response.pipeTo(resp).onComplete(aVoid -> {
 						if(aVoid.failed()) {
 							Throwable cause = aVoid.cause();
-							if (cause instanceof ClosedChannelException) {
-								log.debug("Client closed the connection downloading file " + id);
+							if (cause instanceof ClosedChannelException || isClientAbort(cause)) {
+								log.debug("Client closed the connection downloading file " + id, cause);
 							}
 							else {
 								log.error("An error occurred while piping an s3 file with id=" + id, cause);
@@ -409,6 +409,14 @@ public class S3Client {
 					resultHandler.handle(new DefaultAsyncResult<>((Void) null));
 				}
 			});
+	}
+
+	private static boolean isClientAbort(Throwable cause) {
+		if (!(cause instanceof IOException)) {
+			return false;
+		}
+		final String message = cause.getMessage();
+		return message != null && (message.contains("Connection reset by peer") || message.contains("Broken pipe"));
 	}
 
 	public void readFile(final String id, final Handler<AsyncResult<StorageObject>> handler) {
@@ -709,7 +717,10 @@ public class S3Client {
 
 		MultipartUpload multipartUpload = new MultipartUpload(vertx, httpClient, host, accessKey, secretKey, region, bucket, ssec);
 		multipartUpload.upload(path, idPrefixed, result -> {
-			handler.handle(new JsonObject().put("_id", id).put("status", "ok"));
+			handler.handle(new JsonObject()
+				.put("_id", id)
+				.put("status", result.getString("status"))
+				.put("message", result.getValue("message")));
 		});
 	}
 

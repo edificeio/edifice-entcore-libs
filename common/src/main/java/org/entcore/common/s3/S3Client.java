@@ -596,13 +596,15 @@ public class S3Client {
 		httpClient.request(requestOptions)
 			.flatMap(req -> {
 				AwsUtils.setSSECCopy(req, ssec);
+				// Set before signing: SigV4 collects the x-amz-* headers carried by the request at signature
+				// time, and S3 rejects the request naming any x-amz-* header absent from SignedHeaders.
+				req.putHeader("x-amz-copy-source", "/" + bucket + "/" + getPath(from));
 				try {
 					AwsUtils.sign(req, accessKey, secretKey, region);
 				} catch (SignatureException e) {
 					log.error("S3Client copyFile, signature failed", e);
 					return failedFuture("S3Client copyFile, signature failed");
 				}
-				req.putHeader("x-amz-copy-source", "/" + bucket + "/" + getPath(from));
 
 				return req.send();
 			})

@@ -119,6 +119,10 @@ public class AuthManager extends BusModBase implements Handler<Message<JsonObjec
 		return Future.succeededFuture();
 	}
 
+	public void setNeo4j(Neo4j neo4j) {
+		this.neo4j = neo4j;
+	}
+
 	@Override
 	public void handle(Message<JsonObject> message) {
 		String action = message.body().getString("action");
@@ -896,10 +900,15 @@ public class AuthManager extends BusModBase implements Handler<Message<JsonObjec
 		final String query =
 				"MATCH (n:User {id : {id}}) " +
 				"WHERE HAS(n.login) " +
-				"OPTIONAL MATCH n-[:IN]->(mgroup: ManualGroup)-[:DEPENDS]->(mStruct:Structure) WITH n, COLLECT(distinct {id: mgroup.id, name: mgroup.name, structureId: mStruct.id, structureUai: mStruct.UAI}) as manualGroups " +
+				"OPTIONAL MATCH n-[:IN]->(mgroup: ManualGroup)-[:DEPENDS]->(mStruct:Structure)" +
+				" WITH n, COLLECT(distinct {id: mgroup.id, name: mgroup.name, structureId: mStruct.id, structureUai: mStruct.UAI}) as manualGroups " +
 				"OPTIONAL MATCH n-[:IN]->(gp:Group) " +
 				"OPTIONAL MATCH (gp:ProfileGroup)-[:DEPENDS]->(s:Structure) " +
-				"OPTIONAL MATCH gp-[:DEPENDS]->(c:Class) WITH n, manualGroups, COLLECT(distinct [c.id, c.name]) as classes, COLLECT(distinct [s.id, s.name, s.UAI, s.hasApp, s.ignoreMFA]) as structures, COLLECT(distinct s) as structureNodes, REDUCE(acc=[], pRed IN COLLECT(COALESCE(s.optionEnabled, [])) | pRed+acc ) as optionEnabled, COLLECT(distinct gp.id) as groupsIds " +
+				"OPTIONAL MATCH gp-[:DEPENDS]->(c:Class) " +
+				"WITH n, manualGroups, COLLECT(distinct [c.id, c.name]) as classes, COLLECT(distinct [s.id, s.name, s.UAI, s.hasApp, s.ignoreMFA]) as structures, " +
+						" COLLECT(distinct s) as structureNodes, REDUCE(acc=[], pRed IN COLLECT(COALESCE(s.optionEnabled, [])) | pRed+acc ) as optionEnabled, " +
+						" COLLECT(distinct gp.id) as groupsIds, " +
+						" REDUCE(acc=[], levels IN COLLECT(distinct s.levelsOfEducation) | acc + [x IN levels WHERE NOT x IN acc]) as structuresLevels " +
 				"OPTIONAL MATCH n-[rf:HAS_FUNCTION]->(f:Function) " +
 				"OPTIONAL MATCH n<-[:RELATED]-(child:User) " +
 				"RETURN distinct " +
@@ -910,7 +919,7 @@ public class AuthManager extends BusModBase implements Handler<Message<JsonObjec
 				"COLLECT(distinct [child.id, child.lastName, child.firstName]) as childrenInfo, has(n.password) as hasPw, " +
 				"structures, COLLECT(distinct [f.externalId, rf.scope]) as functions, " +
 				"groupsIds, structureNodes, n.structures as structureExternalId, manualGroups, n.federatedIDP as federatedIDP, n.functions as aafFunctions, " +
-				"optionEnabled, CASE WHEN n.totp IS NOT NULL AND n.totp <> '' THEN true ELSE false END as hasTotp";
+				"optionEnabled, CASE WHEN n.totp IS NOT NULL AND n.totp <> '' THEN true ELSE false END as hasTotp, structuresLevels";
 		final String query2 =
 				"MATCH (u:User {id : {id}}) WHERE exists(u.login) " +
 				"MATCH (u)-[:IN]->()-[:AUTHORIZED]->(r:Role) " +

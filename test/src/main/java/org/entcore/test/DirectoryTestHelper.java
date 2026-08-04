@@ -171,7 +171,7 @@ public class DirectoryTestHelper {
         final String id = UUID.randomUUID().toString();
         final Promise<String> async = Promise.promise();
         final JsonObject props = new JsonObject().put("name", name).put("UAI", UAI).put("externalId", externalId)
-                .put("id", id).put("source", source);
+                .put("id", id).put("source", source).put("levelsOfEducation", new JsonArray().add(1));
         final JsonObject params = new JsonObject().put("props", props);
         final String query = "CREATE (u:Structure {props}) RETURN u";
         Neo4j neo = Neo4j.getInstance();

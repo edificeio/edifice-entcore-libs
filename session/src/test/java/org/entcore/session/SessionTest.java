@@ -25,6 +25,8 @@ package org.entcore.session;
 import java.util.HashMap;
 import java.util.Map;
 
+import io.vertx.core.json.JsonArray;
+import org.entcore.common.neo4j.Neo4j;
 import org.entcore.test.TestHelper;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -54,6 +56,7 @@ public class SessionTest {
         test.database().initMongo(context, mongoContainer);
         manager.init(test.vertx(), test.vertx().getOrCreateContext());
         manager.start();
+        manager.setNeo4j(Neo4j.getInstance());
         final Async async = context.async();
         test.directory().createActiveUser("login", "password", "email@test.com").compose(userId -> {
             ids.put("user1", userId);
@@ -95,6 +98,7 @@ public class SessionTest {
             context.assertTrue(res.getJsonArray("structures").contains(ids.get("struct1")));
             context.assertTrue(res.getJsonArray("structureNames").contains("Ecole1"));
             context.assertTrue(res.getJsonArray("uai").contains("A111111"));
+            context.assertTrue(res.getJsonArray("structuresLevels").contains(1));
             async.complete();
         });
     }

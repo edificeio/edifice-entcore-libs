@@ -145,7 +145,7 @@ public class DataHelper {
      */
     public DataHelper withUser(final UserTest user) {
         sb.add("CREATE (u:User{id: {id}, login: {login}, lastName:{lastName}, lastNameSearchField:{lastNameSearchField}, " +
-                        " firstName: {firstName}, firstNameSearchField: {firstNameSearchField}, source: 'CSV', " +
+                        " firstName: {firstName}, firstNameSearchField: {firstNameSearchField}, source: 'AAF', " +
                         " displayName: {displayName}, displayNameSearchField: {displayNameSearchField}, profiles: {profiles}," +
                         " email: {email}, birthDate: {birthdate}, federated: {federated}, federatedIDP: {federatedIDP}," +
                         " activationCode: {activationCode}})",

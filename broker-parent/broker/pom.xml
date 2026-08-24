@@ -108,6 +108,19 @@
                             <failIfSourceDoesntExist>true</failIfSourceDoesntExist>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>copy-asyncapi-file</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <configuration>
+                            <sourceFile>${project.basedir}/../broker-proxy/target/classes/META-INF/asyncapi.json</sourceFile>
+                            <destinationFile>${project.build.directory}/classes/META-INF/broker-asyncapi.json</destinationFile>
+                            <overWrite>true</overWrite>
+                            <failIfSourceDoesntExist>true</failIfSourceDoesntExist>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
         </plugins>

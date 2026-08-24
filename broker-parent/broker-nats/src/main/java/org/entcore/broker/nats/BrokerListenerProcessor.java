@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import org.entcore.broker.api.BrokerListener;
 import org.entcore.broker.nats.model.NATSContract;
 import org.entcore.broker.nats.model.NATSEndpoint;
+import org.entcore.broker.nats.utils.AsyncApiGenerator;
 import org.entcore.broker.nats.utils.SchemaGeneratorUtil;
 
 import javax.annotation.processing.*;
@@ -29,6 +30,7 @@ import java.util.Set;
 public class BrokerListenerProcessor extends AbstractProcessor {
 
   private SchemaGeneratorUtil schemaGeneratorUtil;
+  private AsyncApiGenerator asyncApiGenerator;
   private Filer filer;
   private Messager messager;
   private ObjectMapper objectMapper;
@@ -37,6 +39,7 @@ public class BrokerListenerProcessor extends AbstractProcessor {
   public synchronized void init(ProcessingEnvironment processingEnv) {
     super.init(processingEnv);
     this.schemaGeneratorUtil = new SchemaGeneratorUtil();
+    this.asyncApiGenerator = new AsyncApiGenerator(schemaGeneratorUtil);
     this.filer = processingEnv.getFiler();
     this.messager = processingEnv.getMessager();
 
@@ -74,6 +77,15 @@ public class BrokerListenerProcessor extends AbstractProcessor {
       e.printStackTrace();
       messager.printMessage(Diagnostic.Kind.ERROR,
         "Error writing nats.json: " + e.getMessage());
+    }
+
+    // Generate and write the asyncapi.json file
+    try {
+      writeAsyncApiFile(contract);
+    } catch (IOException e) {
+      e.printStackTrace();
+      messager.printMessage(Diagnostic.Kind.ERROR,
+        "Error writing asyncapi.json: " + e.getMessage());
     }
 
     return true;
@@ -145,6 +157,16 @@ public class BrokerListenerProcessor extends AbstractProcessor {
 
     try (Writer writer = file.openWriter()) {
       objectMapper.writeValue(writer, contract);
+    }
+  }
+
+  private void writeAsyncApiFile(NATSContract contract) throws IOException {
+    Map<String, Object> asyncApiDoc = asyncApiGenerator.generate(contract);
+    FileObject file = filer.createResource(
+      StandardLocation.CLASS_OUTPUT, "", "META-INF/asyncapi.json");
+
+    try (Writer writer = file.openWriter()) {
+      objectMapper.writeValue(writer, asyncApiDoc);
     }
   }
 

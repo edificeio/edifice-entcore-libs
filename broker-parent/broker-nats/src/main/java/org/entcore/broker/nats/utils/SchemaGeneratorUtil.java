@@ -158,6 +158,9 @@ public class SchemaGeneratorUtil {
 
 
   private Object getElementTypeOfMap(TypeMirror typeMirror) {
+    if(typeMirror.toString().endsWith(".JsonObject")) {
+      return of("type", "object");
+    }
     final List<? extends TypeMirror> typeArgs = ((DeclaredType) typeMirror).getTypeArguments();
     if (typeArgs == null || typeArgs.isEmpty()) {
       throw new RuntimeException("Cannot serialize a schema with an unparametrized Map : " + typeMirror);
@@ -169,6 +172,9 @@ public class SchemaGeneratorUtil {
   }
 
   private Object getElementTypeOfArrayLike(TypeMirror typeMirror) {
+    if(typeMirror.toString().endsWith(".JsonArray")) {
+      return of("type", "object");
+    }
     final List<? extends TypeMirror> typeArguments = ((DeclaredType) typeMirror).getTypeArguments();
     if (typeArguments == null || typeArguments.isEmpty()) {
       return of("type", "object");
@@ -203,14 +209,15 @@ public class SchemaGeneratorUtil {
 
   private boolean isMapLike(TypeMirror typeMirror) {
     final String type = typeMirror.toString();
-    return type.startsWith("java.util.Map");
+    return type.endsWith(".JsonObject") || type.startsWith("java.util.Map");
   }
 
   private boolean isArrayLike(TypeMirror typeMirror) {
     final String type = typeMirror.toString();
     return type.startsWith("java.util.Set") ||
       type.startsWith("java.util.List") ||
-      type.startsWith("java.util.Collection");
+      type.startsWith("java.util.Collection") ||
+      type.endsWith(".JsonArray");
   }
 
   private void clearReferences(Map<String, Object> exportedSchema) {

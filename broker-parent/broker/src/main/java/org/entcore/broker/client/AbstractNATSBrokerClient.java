@@ -161,7 +161,7 @@ public abstract class AbstractNATSBrokerClient implements BrokerClient {
      */
     private void listenDynamicSubjectRegistration() {
         final EventBus eb = this.vertx.eventBus();
-        eb.<String>localConsumer("broker.remove", m -> {
+        eb.<String>consumer("broker.remove", m -> {
             final String subjectToRemove = m.body();
             final NatsClient natsClient = getNatsClientForSubject(subjectToRemove);
             natsClient.unsubscribe(subjectToRemove)
@@ -171,7 +171,7 @@ public abstract class AbstractNATSBrokerClient implements BrokerClient {
                     m.reply(new JsonObject().put("ok", false).put("error", th.getMessage()));
                 });
         });
-        eb.<String>localConsumer("broker.add", m -> {
+        eb.<String>consumer("broker.add", m -> {
             final String subjectToListen = m.body();
             final NatsClient natsClient = getNatsClientForSubject(subjectToListen);
             natsClient.subscribe(subjectToListen, this.getQueueName(), this::proxifyNatsMessage)

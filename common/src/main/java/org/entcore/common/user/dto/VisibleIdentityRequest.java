@@ -1,0 +1,193 @@
+package org.entcore.common.user.dto;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+import java.util.List;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class VisibleIdentityRequest {
+
+
+    private String userId;
+    private boolean itSelf;
+    private boolean includeHiddenCommunity;
+    private boolean includeEmptyGroups;
+    private List<String> expectedVisiblesIds;
+    private List<String> includedVisibleIds;
+    private boolean publicDetails;
+    private String search;
+    private VisibleIdFilter visibleIdFilter = VisibleIdFilter.BOTH;
+    private String workflowRightFilter;
+    private boolean onlyActivatedUsers;
+    private String profileFilter;
+
+    public enum VisibleIdFilter {
+        /**
+         * Users seen through the visible groups : a group is a channel and must let its members be seen
+         * (users property set to BOTH or OUTGOING). For "the visible members of these groups", whatever the path
+         * they are visible through, use UserUtils.findVisibleMembersOfGroups instead.
+         */
+        USERS_OF_GROUPS,
+        BOTH,
+        /** Only the visible groups, no user */
+        GROUPS;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    /**
+     * Id of the user doing the visible request
+     * @param userId
+     * @return
+     */
+    public VisibleIdentityRequest setUserId(String userId) {
+        this.userId = userId;
+        return this;
+    }
+
+    /**
+     * Include himself in the response
+     * @return
+     */
+    public boolean isItSelf() {
+        return itSelf;
+    }
+
+    public VisibleIdentityRequest setItSelf(boolean itSelf) {
+        this.itSelf = itSelf;
+        return this;
+    }
+
+    /**
+     * Include hidden group use by Communities
+     * @return
+     */
+    public boolean isIncludeHiddenCommunity() {
+        return includeHiddenCommunity;
+    }
+
+    public VisibleIdentityRequest setIncludeHiddenCommunity(boolean includeHiddenCommunity) {
+        this.includeHiddenCommunity = includeHiddenCommunity;
+        return this;
+    }
+
+    /**
+     * Include the groups without any member, which are left out by default
+     * @return
+     */
+    public boolean isIncludeEmptyGroups() {
+        return includeEmptyGroups;
+    }
+
+    public VisibleIdentityRequest setIncludeEmptyGroups(boolean includeEmptyGroups) {
+        this.includeEmptyGroups = includeEmptyGroups;
+        return this;
+    }
+
+    /**
+     * Restrict the response to those user or group ids. Null or empty means no restriction : every visible
+     * of the user is returned.
+     * @return
+     */
+    public List<String> getExpectedVisiblesIds() {
+        return expectedVisiblesIds;
+    }
+
+    public VisibleIdentityRequest setExpectedVisiblesIds(List<String> expectedVisiblesIds) {
+        this.expectedVisiblesIds = expectedVisiblesIds;
+        return this;
+    }
+
+    /**
+     * Return only id + type of visible, or add public general information (dislayName / name / groupName
+     *  structureName, profile
+     * @return
+     */
+    public boolean isPublicDetails() {
+        return publicDetails;
+    }
+
+    public VisibleIdentityRequest setPublicDetails(boolean publicDetails) {
+        this.publicDetails = publicDetails;
+        return this;
+    }
+
+    public List<String> getIncludedVisibleIds() {
+        return includedVisibleIds;
+    }
+
+    public VisibleIdentityRequest setIncludedVisibleIds(List<String> includedVisibleIds) {
+        this.includedVisibleIds = includedVisibleIds;
+        return this;
+    }
+
+    public String getSearch() {
+        return search;
+    }
+
+    public VisibleIdentityRequest setSearch(String search) {
+        this.search = search;
+        return this;
+    }
+
+    public VisibleIdFilter getVisibleIdFilter() {
+        return visibleIdFilter;
+    }
+
+    public VisibleIdentityRequest setVisibleIdFilter(VisibleIdFilter visibleIdFilter) {
+        if(visibleIdFilter != null) {
+            this.visibleIdFilter = visibleIdFilter;
+        }
+        return this;
+    }
+
+    /**
+     * Filter users against a particular workflow right (don't apply to group)
+     * @return
+     */
+    public String getWorkflowRightFilter() {
+        return workflowRightFilter;
+    }
+
+    public VisibleIdentityRequest setWorkflowRightFilter(String workflowRightFilter) {
+        this.workflowRightFilter = workflowRightFilter;
+        return this;
+    }
+
+    /**
+     * Filter only activated users
+     * @return
+     */
+    public boolean isOnlyActivatedUsers() {
+        return onlyActivatedUsers;
+    }
+
+    public VisibleIdentityRequest setOnlyActivatedUsers(boolean onlyActivatedUsers) {
+        this.onlyActivatedUsers = onlyActivatedUsers;
+        return this;
+    }
+
+    /**
+     * Restrict the response to the identities attached to this profile (Student, Teacher...).
+     * The predicate is not the same for every kind of result :
+     * <ul>
+     *     <li>user : the user carries this profile</li>
+     *     <li>profile group : the group is the group of this profile</li>
+     *     <li>any other group (manual, functional...) : the group has at least one member of this profile,
+     *     and lets its members be seen (users property set to BOTH or OUTGOING)</li>
+     * </ul>
+     * Identities forced into the response through includedVisibleIds are not filtered.
+     * Null or empty means no restriction.
+     * @return
+     */
+    public String getProfileFilter() {
+        return profileFilter;
+    }
+
+    public VisibleIdentityRequest setProfileFilter(String profileFilter) {
+        this.profileFilter = profileFilter;
+        return this;
+    }
+}

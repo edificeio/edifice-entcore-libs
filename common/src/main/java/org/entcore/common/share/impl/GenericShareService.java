@@ -30,9 +30,6 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
-import io.vertx.core.shareddata.LocalMap;
-
-import org.entcore.common.communication.CommunicationUtils;
 import org.entcore.common.events.EventStore;
 import org.entcore.common.events.EventStoreFactory;
 import org.entcore.common.neo4j.Neo4j;
@@ -42,6 +39,7 @@ import org.entcore.common.share.ShareInfosQuery;
 import org.entcore.common.share.ShareModel;
 import org.entcore.common.share.ShareService;
 import org.entcore.common.user.UserUtils;
+import org.entcore.common.user.dto.VisibleIdentityRequest;
 import org.entcore.common.utils.StringUtils;
 import org.entcore.common.validation.StringValidation;
 
@@ -50,9 +48,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static fr.wseduc.webutils.Utils.*;
-import static org.entcore.common.neo4j.Neo4jResult.validResultHandler;
-import static org.entcore.common.user.UserUtils.findVisibleProfilsGroups;
-import static org.entcore.common.user.UserUtils.findVisibleUsers;
 import static org.entcore.common.validation.StringValidation.cleanId;
 
 public abstract class GenericShareService implements ShareService {
@@ -265,7 +260,8 @@ public abstract class GenericShareService implements ShareService {
 			sanitizedSearch = null;
 			}
 
-		UserUtils.findVisibleProfilsGroups(this.eb, userId, null, "RETURN distinct profileGroup.id as id, profileGroup.name as name, profileGroup.groupDisplayName as groupDisplayName, profileGroup.structureName as structureName, labels(profileGroup) as labels ORDER BY name UNION MATCH (g:Group) WHERE g.id in {groupIds} RETURN distinct g.id as id, g.name as name, g.groupDisplayName as groupDisplayName, g.structureName as structureName, labels(g) as labels ORDER BY name ", groupParams, (visibleGroups) -> {
+		findVisibleOrSharedIdentities(userId, sanitizedSearch, usersIds, groupParams.getJsonArray("groupIds"), (visibles) -> {
+			final JsonArray visibleGroups = visibles.getJsonArray("groups");
 			JsonObject groups = new JsonObject();
 				groups.put("visibles", visibleGroups);
 				groups.put("checked", groupCheckedActions);
@@ -275,35 +271,85 @@ public abstract class GenericShareService implements ShareService {
 					UserUtils.groupDisplayName(group, acceptLanguage);
 				}
 			}
-			UserUtils.findVisibleUsersForShare(this.eb, userId, sanitizedSearch, usersIds, (visibleUsers) -> {
-					JsonObject users = new JsonObject();
-					users.put("visibles", visibleUsers);
-					users.put("checked", userCheckedActions);
-				JsonObject share = (new JsonObject()).put("actions", actions).put("groups", groups).put("users", users);
-					handler.handle(share);
-				});
-			});
-		}
+			JsonObject users = new JsonObject();
+			users.put("visibles", visibles.getJsonArray("users"));
+			users.put("checked", userCheckedActions);
+			JsonObject share = (new JsonObject()).put("actions", actions).put("groups", groups).put("users", users);
+			handler.handle(share);
+		});
+	}
 
-	// TODO improve query
+	/**
+	 * Users and groups the user can see, plus the ones the resource is already shared with, whether visible or
+	 * not. The search only applies to the visible users : groups and already shared identities are always given.
+	 * Visibility is computed in a single call, then the details are read in a single transaction.
+	 * @return { users: [{id, username, lastName, firstName, profile}],
+	 * groups: [{id, name, groupDisplayName, structureName, labels}] }
+	 */
+	private void findVisibleOrSharedIdentities(String userId, String search, JsonArray sharedUserIds,
+			JsonArray sharedGroupIds, Handler<JsonObject> handler) {
+		final VisibleIdentityRequest request = new VisibleIdentityRequest()
+				.setUserId(userId)
+				.setItSelf(true)
+				.setSearch(search);
+		UserUtils.findVisibleIdentities(eb, request)
+				.recover(e -> {
+					log.error("[GenericShareService.findVisibleOrSharedIdentities] failed to fetch the visibles of " + userId, e);
+					return Future.succeededFuture(new JsonArray());
+				})
+				.onSuccess(visibles -> {
+					final JsonArray visibleUserIds = new JsonArray();
+					final JsonArray visibleGroupIds = new JsonArray();
+					for (Object o : visibles) {
+						if (!(o instanceof JsonObject)) continue;
+						final JsonObject visible = (JsonObject) o;
+						if (Boolean.TRUE.equals(visible.getBoolean("isUser"))) {
+							visibleUserIds.add(visible.getString("id"));
+						} else {
+							visibleGroupIds.add(visible.getString("id"));
+						}
+					}
+					if (sharedUserIds != null) visibleUserIds.addAll(sharedUserIds);
+					if (sharedGroupIds != null) visibleGroupIds.addAll(sharedGroupIds);
+					// A single IN list on purpose : "id IN {a} OR id IN {b}" makes the planner drop the id index and
+					// scan every node of the label
+					final StatementsBuilder statements = new StatementsBuilder()
+							.add("MATCH (u:User) WHERE u.id IN {ids} " +
+									"RETURN distinct u.id as id, u.displayName as username, u.lastName as lastName, " +
+									"u.firstName as firstName, HEAD(u.profiles) as profile ORDER BY username ",
+									new JsonObject().put("ids", visibleUserIds))
+							.add("MATCH (g:Group) WHERE g.id IN {ids} " +
+									"RETURN distinct g.id as id, g.name as name, g.groupDisplayName as groupDisplayName, " +
+									"g.structureName as structureName, labels(g) as labels ORDER BY name ",
+									new JsonObject().put("ids", visibleGroupIds));
+					Neo4j.getInstance().executeTransaction(statements.build(), null, true, Neo4jResult.validResultsHandler(results -> {
+						if (results.isRight()) {
+							handler.handle(new JsonObject()
+									.put("users", results.right().getValue().getJsonArray(0))
+									.put("groups", results.right().getValue().getJsonArray(1)));
+						} else {
+							log.error("[GenericShareService.findVisibleOrSharedIdentities] failed to read the visibles of " + userId + " : " +
+									results.left().getValue());
+							handler.handle(new JsonObject().put("users", new JsonArray()).put("groups", new JsonArray()));
+						}
+					}));
+				});
+	}
+
 	protected void profilGroupIsVisible(String userId, final String groupId, final Handler<Boolean> handler) {
 		if (userId == null || groupId == null) {
 			handler.handle(false);
 			return;
 		}
-		findVisibleProfilsGroups(eb, userId, true, new Handler<JsonArray>() {
-			@Override
-			public void handle(JsonArray visibleGroups) {
-				final List<String> visibleGroupsIds = new ArrayList<>();
-				for (int i = 0; i < visibleGroups.size(); i++) {
-					JsonObject j = visibleGroups.getJsonObject(i);
-					if (j != null && j.getString("id") != null) {
-						visibleGroupsIds.add(j.getString("id"));
-					}
-				}
-				handler.handle(visibleGroupsIds.contains(groupId));
-			}
-		});
+		// Empty groups stay shareable : an existing share must remain editable once its group has emptied
+		final VisibleIdentityRequest request = new VisibleIdentityRequest()
+				.setUserId(userId)
+				.setVisibleIdFilter(VisibleIdentityRequest.VisibleIdFilter.GROUPS)
+				.setExpectedVisiblesIds(Collections.singletonList(groupId))
+				.setIncludeEmptyGroups(true);
+		UserUtils.findVisibleIdentities(eb, request)
+				.onSuccess(visibles -> handler.handle(containsId(visibles, groupId)))
+				.onFailure(e -> handler.handle(false));
 	}
 
 	protected void userIsVisible(String userId, final String userShareId, final Handler<Boolean> handler) {
@@ -311,19 +357,13 @@ public abstract class GenericShareService implements ShareService {
 			handler.handle(false);
 			return;
 		}
-		findVisibleUsers(eb, userId, false, new Handler<JsonArray>() {
-			@Override
-			public void handle(JsonArray visibleUsers) {
-				final List<String> visibleUsersIds = new ArrayList<>();
-				for (int i = 0; i < visibleUsers.size(); i++) {
-					JsonObject j = visibleUsers.getJsonObject(i);
-					if (j != null && j.getString("id") != null) {
-						visibleUsersIds.add(j.getString("id"));
-					}
-				}
-				handler.handle(visibleUsersIds.contains(userShareId));
-			}
-		});
+		UserUtils.filterFewOrGetAllVisibles(eb, userId, new JsonArray().add(userShareId), false)
+				.onSuccess(visibles -> handler.handle(containsId(visibles, userShareId)))
+				.onFailure(e -> handler.handle(false));
+	}
+
+	private static boolean containsId(JsonArray visibles, String id) {
+		return visibles.stream().anyMatch(o -> o instanceof JsonObject && id.equals(((JsonObject) o).getString("id")));
 	}
 
 	protected boolean actionsExists(List<String> actions) {
@@ -457,12 +497,10 @@ public abstract class GenericShareService implements ShareService {
 		final JsonArray originalShares,
 		final Map<String, Set<String>> shareUpdates) {
 		final Promise<AccessibleUsersCheck> promise = Promise.promise();
-		//FIXME should be optimized by removing unecessary optionals
-		final String customReturn = "RETURN DISTINCT visibles.id as id, has(visibles.login) as isUser";
 
 		final List<String> idsOfShare = getIdOfGroupsAndUsersConcernedByShares(originalShares, shareUpdates);
 		// include hidden groups because we are able to share to hidden groups
-		UserUtils.filterFewOrGetAllVisibles(eb, userId, new JsonArray(idsOfShare),	true,"fr", customReturn, false, true)
+		UserUtils.filterFewOrGetAllVisibles(eb, userId, new JsonArray(idsOfShare),	true, true)
 				.onSuccess(visibleChunks -> {
 					final Set<String> seeableUsersAndGroupsFromOriginalShares = visibleChunks.stream()
 							.map(entry -> ((JsonObject) entry).getString("id"))

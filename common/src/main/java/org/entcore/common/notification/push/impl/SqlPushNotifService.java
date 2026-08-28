@@ -6,12 +6,11 @@ import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.entcore.common.notification.push.PushNotifBuilder;
-import org.entcore.common.notification.push.PushNotifDto;
+import org.entcore.common.notification.push.PushNotifStatus;
 import org.entcore.common.notification.push.PushNotifService;
 import org.entcore.common.sql.Sql;
 import org.entcore.common.sql.SqlResult;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -23,25 +22,12 @@ import java.util.UUID;
  * Push notification queue held in the push-manager schema of the platform database, reached through
  * the platform sql verticle.
  *
- * <p>That verticle binds every parameter as text but integers, and renders every result as text as
- * well, so the queries carry the casts and the conversions the client would otherwise do.
+ * <p>That verticle binds every parameter as text but integers, so the queries carry the casts the
+ * client would otherwise do.
  */
 public class SqlPushNotifService implements PushNotifService {
 
     private static final String DEFAULT_TABLE = "push_manager.push_notifs";
-    /** Columns the sql verticle hands back as text and {@link SqlResult} parses back into json. */
-    private static final JsonArray JSONB_FIELDS = new JsonArray()
-            .add("message").add("message_params").add("notification_ids");
-    private static final String COLUMNS =
-            "id, user_id, scheduled, notif_type, notif_sub_type, message, message_params, status, attempts, " +
-            // A postgres array comes back as (index, value) pairs, json keeps it flat.
-            "to_json(notification_ids) AS notification_ids, " +
-            // Timestamps come back formatted in the timezone of the JVM and without any offset, epoch
-            // microseconds leave nothing to interpret and keep the precision postgres stores, which
-            // created_date needs to match again when it comes back as the key of an update.
-            "(extract(epoch from created_date) * 1000000)::bigint AS created_date, " +
-            "(extract(epoch from schedule_at) * 1000000)::bigint AS schedule_at, " +
-            "(extract(epoch from attempt_at) * 1000000)::bigint AS attempt_at";
 
     private final Sql sql;
     private final String tableName;
@@ -68,20 +54,6 @@ public class SqlPushNotifService implements PushNotifService {
     }
 
     @Override
-    public Future<List<PushNotifDto>> findPending(final String userId, final String notifType) {
-        final String query = "SELECT " + COLUMNS + " FROM " + tableName +
-                " WHERE user_id = ?::uuid AND notif_type = ? AND status = ? ORDER BY created_date";
-        final JsonArray values = new JsonArray()
-                .add(UUID.fromString(userId).toString())
-                .add(notifType)
-                .add(PushNotifDto.Status.PENDING.getCode());
-        return sql.prepared(query, values, new DeliveryOptions()).compose(message -> {
-            message.body().put("jsonb_fields", JSONB_FIELDS.copy());
-            return toFuture(SqlResult.validResult(message)).map(SqlPushNotifService::toDtos);
-        });
-    }
-
-    @Override
     public Future<Void> create(final PushNotifBuilder pushNotif) {
         final List<String> names = new ArrayList<>();
         final List<String> placeholders = new ArrayList<>();
@@ -105,22 +77,31 @@ public class SqlPushNotifService implements PushNotifService {
     }
 
     @Override
-    public Future<Boolean> update(final PushNotifBuilder pushNotif) {
-        if (pushNotif.getColumns().isEmpty()) {
-            return Future.failedFuture("push.notif.update.without.column");
-        }
-        final List<String> assignments = new ArrayList<>();
-        final JsonArray values = new JsonArray();
-        for (final Map.Entry<String, Object> column : pushNotif.getColumns().entrySet()) {
-            assignments.add(column.getKey() + " = " + placeholder(column.getKey()));
-            values.add(toSqlValue(column.getValue()));
-        }
-        values.add(pushNotif.getId().toString())
-                .add(PushNotifDto.Status.PENDING.getCode());
-        // attempt_at is stamped by push-manager when it reserves the notification for a send:
-        // a notification it already holds is left alone, and the caller queues another one.
-        final String query = "UPDATE " + tableName + " SET " + String.join(", ", assignments) +
-                " WHERE id = ?::uuid AND status = ? AND attempt_at IS NULL";
+    public Future<Boolean> appendToPendingRecap(final String userId, final String notifType,
+            final String notificationId, final String bodyTemplate, final String countPlaceholder) {
+        // Every expression of a SET list reads the row as it stood before the update, so the param and
+        // the body are both rendered against the same count.
+        final String nextCount = "(coalesce((message_params->>'count')::int, 1) + 1)";
+        final String query = "UPDATE " + tableName +
+                " SET notification_ids = array_append(coalesce(notification_ids, '{}'::text[]), ?::text)," +
+                " message_params = jsonb_set(coalesce(message_params, '{}'::jsonb), '{count}'," +
+                " to_jsonb(" + nextCount + "))," +
+                // The envelope PushNotifBuilder.withMessage wraps the fcm payload in.
+                " message = jsonb_set(message, '{message,notification,body}'," +
+                " to_jsonb(replace(?, ?, " + nextCount + "::text)))" +
+                // The oldest pending recap of that user, locked so a concurrent append waits for it.
+                // attempt_at is stamped by push-manager when it reserves a notification for a send:
+                // one it already holds is left alone, and the caller queues a new recap instead.
+                " WHERE (id, created_date) = (SELECT id, created_date FROM " + tableName +
+                " WHERE user_id = ?::uuid AND notif_type = ? AND status = ? AND attempt_at IS NULL" +
+                " ORDER BY created_date LIMIT 1 FOR UPDATE)";
+        final JsonArray values = new JsonArray()
+                .add(notificationId)
+                .add(bodyTemplate)
+                .add(countPlaceholder)
+                .add(UUID.fromString(userId).toString())
+                .add(notifType)
+                .add(PushNotifStatus.PENDING.getCode());
         return sql.prepared(query, values, new DeliveryOptions())
                 .compose(message -> toFuture(SqlResult.validRowsResult(message)))
                 .map(updated -> updated.getLong("rows", 0L) > 0);
@@ -154,50 +135,6 @@ public class SqlPushNotifService implements PushNotifService {
             }
         }
         return "{" + String.join(",", elements) + "}";
-    }
-
-    private static List<PushNotifDto> toDtos(final JsonArray rows) {
-        final List<PushNotifDto> pushNotifs = new ArrayList<>(rows.size());
-        for (int i = 0; i < rows.size(); i++) {
-            pushNotifs.add(toDto(rows.getJsonObject(i)));
-        }
-        return pushNotifs;
-    }
-
-    private static PushNotifDto toDto(final JsonObject row) {
-        final String scheduled = row.getString("scheduled");
-        final JsonArray notificationIds = row.getJsonArray("notification_ids");
-        return new PushNotifDto()
-                .setId(UUID.fromString(row.getString("id")))
-                .setCreatedDate(toInstant(row.getLong("created_date")))
-                .setUserId(row.getString("user_id"))
-                .setScheduled(scheduled == null ? null : PushNotifDto.ScheduleType.valueOf(scheduled))
-                .setNotifType(row.getString("notif_type"))
-                .setNotifSubType(row.getString("notif_sub_type"))
-                .setMessage(row.getJsonObject("message"))
-                .setMessageParams(row.getJsonObject("message_params"))
-                .setNotificationIds(toStrings(notificationIds))
-                .setStatus(PushNotifDto.Status.fromCode(row.getInteger("status")))
-                .setScheduleAt(toInstant(row.getLong("schedule_at")))
-                .setAttemptAt(toInstant(row.getLong("attempt_at")))
-                .setAttempts(row.getInteger("attempts", 0));
-    }
-
-    private static List<String> toStrings(final JsonArray values) {
-        if (values == null) {
-            return Collections.emptyList();
-        }
-        final List<String> strings = new ArrayList<>(values.size());
-        for (int i = 0; i < values.size(); i++) {
-            strings.add(values.getString(i));
-        }
-        return strings;
-    }
-
-    private static Instant toInstant(final Long epochMicro) {
-        return epochMicro == null ? null
-                : Instant.ofEpochSecond(Math.floorDiv(epochMicro, 1000000L),
-                        Math.floorMod(epochMicro, 1000000L) * 1000L);
     }
 
     private static <T> Future<T> toFuture(final Either<String, T> result) {

@@ -12,14 +12,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Builds the payload of a push notification to queue for push-manager.
- *
- * <p>Two entry points, because a notification is keyed by {@code (id, createdDate)}:
- * <ul>
- *     <li>{@link #create()} generates the key of a brand new notification;</li>
- *     <li>{@link #from(PushNotifDto)} reuses the key of an existing one and starts with no column
- *     set, so an update rewrites only what is set afterwards.</li>
- * </ul>
+ * Builds the payload of a push notification to queue for push-manager, keyed by
+ * {@code (id, createdDate)}.
  *
  * <p>A {@code null} value never sets a column: the builder carries what has to be written, not the
  * whole row. Setters take caller-friendly types, getters expose the values as they are handed to
@@ -41,11 +35,6 @@ public class PushNotifBuilder {
         return new PushNotifBuilder(UUID.randomUUID(), Instant.now());
     }
 
-    /** An update of an already queued notification, keyed on the one read from storage. */
-    public static PushNotifBuilder from(PushNotifDto pushNotif) {
-        return new PushNotifBuilder(pushNotif.getId(), pushNotif.getCreatedDate());
-    }
-
     /**
      * @param userId ENT user id, which the storage holds as a UUID
      * @throws IllegalArgumentException if the id is not a UUID
@@ -56,7 +45,7 @@ public class PushNotifBuilder {
 
     /** To be sent on the next push-manager pass. */
     public PushNotifBuilder immediate() {
-        return put("scheduled", PushNotifDto.ScheduleType.IMMEDIATE.name());
+        return put("scheduled", PushNotifScheduleType.IMMEDIATE.name());
     }
 
     /**
@@ -67,7 +56,7 @@ public class PushNotifBuilder {
         if(sendAt == null) {
             return this;
         }
-        put("scheduled", PushNotifDto.ScheduleType.AT_DATE.name());
+        put("scheduled", PushNotifScheduleType.AT_DATE.name());
         return put("schedule_at", OffsetDateTime.ofInstant(sendAt, ZoneOffset.UTC));
     }
 
@@ -96,7 +85,7 @@ public class PushNotifBuilder {
         return put("notification_ids", notificationIds == null ? null : new ArrayList<String>(notificationIds));
     }
 
-    public PushNotifBuilder withStatus(PushNotifDto.Status status) {
+    public PushNotifBuilder withStatus(PushNotifStatus status) {
         return put("status", status == null ? null : status.getCode());
     }
 

@@ -30,9 +30,6 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
-import io.vertx.core.shareddata.LocalMap;
-
-import org.entcore.common.communication.CommunicationUtils;
 import org.entcore.common.events.EventStore;
 import org.entcore.common.events.EventStoreFactory;
 import org.entcore.common.neo4j.Neo4j;
@@ -50,7 +47,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static fr.wseduc.webutils.Utils.*;
-import static org.entcore.common.neo4j.Neo4jResult.validResultHandler;
 import static org.entcore.common.user.UserUtils.findVisibleProfilsGroups;
 import static org.entcore.common.user.UserUtils.findVisibleUsers;
 import static org.entcore.common.validation.StringValidation.cleanId;
@@ -457,12 +453,10 @@ public abstract class GenericShareService implements ShareService {
 		final JsonArray originalShares,
 		final Map<String, Set<String>> shareUpdates) {
 		final Promise<AccessibleUsersCheck> promise = Promise.promise();
-		//FIXME should be optimized by removing unecessary optionals
-		final String customReturn = "RETURN DISTINCT visibles.id as id, has(visibles.login) as isUser";
 
 		final List<String> idsOfShare = getIdOfGroupsAndUsersConcernedByShares(originalShares, shareUpdates);
 		// include hidden groups because we are able to share to hidden groups
-		UserUtils.filterFewOrGetAllVisibles(eb, userId, new JsonArray(idsOfShare),	true,"fr", customReturn, false, true)
+		UserUtils.filterFewOrGetAllVisibles(eb, userId, new JsonArray(idsOfShare),	true, true)
 				.onSuccess(visibleChunks -> {
 					final Set<String> seeableUsersAndGroupsFromOriginalShares = visibleChunks.stream()
 							.map(entry -> ((JsonObject) entry).getString("id"))

@@ -38,8 +38,8 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
-import org.entcore.common.neo4j.Neo4j;
 import io.vertx.core.shareddata.LocalMap;
+import org.entcore.common.neo4j.Neo4j;
 import org.entcore.common.session.SessionRecreationRequest;
 import org.entcore.common.utils.HostUtils;
 import org.entcore.common.utils.StringUtils;
@@ -698,17 +698,11 @@ public class UserUtils {
 	 * id: recipient ID which the sender can communicate with
 	 * }
 	 */
-	public static Future<JsonArray> filterFewOrGetAllVisibles(EventBus eb, String userId, JsonArray checkIds) {
-		return filterFewOrGetAllVisibles(eb, userId, checkIds, false, null, " MATCH (visibles) RETURN DISTINCT visibles.id as id ", true);
+	public static Future<JsonArray> filterFewOrGetAllVisibles(EventBus eb, String userId, JsonArray checkIds, boolean itself) {
+		return filterFewOrGetAllVisibles(eb, userId, checkIds, itself, false);
 	}
 
-	public static Future<JsonArray> filterFewOrGetAllVisibles(EventBus eb, String userId, JsonArray checkIds,
-															  boolean itself, String language, String customReturn, boolean reverseUnion) {
-		return filterFewOrGetAllVisibles(eb, userId, checkIds, itself, language, customReturn, reverseUnion, false);
-	}
-
-	public static Future<JsonArray> filterFewOrGetAllVisibles(EventBus eb, String userId, JsonArray checkIds,
-															  boolean itself, String language, String customReturn, boolean reverseUnion, boolean includeHidden) {
+	public static Future<JsonArray> filterFewOrGetAllVisibles(EventBus eb, String userId, JsonArray checkIds,boolean itself, boolean includeHidden) {
 		if(StringUtils.isEmpty(userId) || checkIds == null || checkIds.isEmpty()) {
 			return Future.succeededFuture(new JsonArray());
 		}
@@ -722,26 +716,41 @@ public class UserUtils {
 			params.put("includeHidden", true);
 		}
 		
-		visibleFutures.add(findVisibles(eb,
+		visibleFutures.add(findVisibleIdentity(eb,
 				userId,
-				customReturn,
-				params,
 				itself,
-				true,
-				false,
-				language,
-				null,
-				null,
-				reverseUnion
+				includeHidden,
+				params
 		));
 
 		return Future.all(visibleFutures)
-				.map(futures -> {
-					return futures.list().stream()
-							.map(JsonArray.class::cast)
-							.flatMap(arr -> arr.stream().map(JsonObject.class::cast))
-							.collect(Collector.of(JsonArray::new, JsonArray::add, JsonArray::add));
-				});
+				.map(futures -> futures.list().stream()
+                        .map(JsonArray.class::cast)
+                        .flatMap(arr -> arr.stream().map(JsonObject.class::cast))
+                        .collect(Collector.of(JsonArray::new, JsonArray::add, JsonArray::add)));
+	}
+
+	private static Future<JsonArray> findVisibleIdentity(EventBus eb, String userId, boolean itSelf, boolean includeHidden, JsonObject params) {
+		JsonObject m = new JsonObject()
+				.put("itself", itSelf)
+				.put("includeHidden", includeHidden)
+				.put("action", "visiblesIdentities");
+		if (params != null) {
+			m.put("params", params);
+		}
+		m.put("userId", userId);
+		Promise<JsonArray> promise = Promise.promise();
+		eb.request(COMMUNICATION_USERS, m, new DeliveryOptions().setSendTimeout(getFindVisiblesTimeout()), (Handler<AsyncResult<Message<JsonArray>>>) res -> {
+            if (res.succeeded()) {
+                JsonArray r = res.result().body();
+                log.info("UserUtils.findVisibles - r.size = " + r.size()); // TODO JBER : exposer métrique
+                promise.complete(r);
+            } else {
+                log.error("An error occurred while fetching visible users for user " + userId, res.cause());
+                promise.fail(res.cause());
+            }
+        });
+		return promise.future();
 	}
 
 	public static void getSession(EventBus eb, final HttpServerRequest request,

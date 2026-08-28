@@ -38,9 +38,11 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
-import org.entcore.common.neo4j.Neo4j;
 import io.vertx.core.shareddata.LocalMap;
+import org.entcore.common.neo4j.Neo4j;
+import org.entcore.common.neo4j.Neo4jResult;
 import org.entcore.common.session.SessionRecreationRequest;
+import org.entcore.common.user.dto.VisibleIdentityRequest;
 import org.entcore.common.utils.HostUtils;
 import org.entcore.common.utils.StringUtils;
 import org.entcore.common.validation.StringValidation;
@@ -53,7 +55,6 @@ import java.util.stream.Collectors;
 import static fr.wseduc.webutils.Utils.*;
 import static fr.wseduc.webutils.http.Renders.unauthorized;
 import static org.entcore.common.http.filter.AppOAuthResourceProvider.getTokenId;
-import static org.entcore.common.share.ShareService.EXPECTED_IDS_USERS_GROUPS;
 
 public class UserUtils {
 
@@ -86,7 +87,6 @@ public class UserUtils {
 		public JsonArray relativeAddedToTheList = new JsonArray();
 
 	}
-
 
 	private static void findUsers(final EventBus eb, HttpServerRequest request,
 								  final JsonObject query, final Handler<JsonArray> handler) {
@@ -143,52 +143,88 @@ public class UserUtils {
         });
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleUsers(final EventBus eb, HttpServerRequest request, boolean profile,
 										final Handler<JsonArray> handler) {
 		findVisibleUsers(eb, request, profile, null, null, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleUsers(final EventBus eb, HttpServerRequest request, boolean profile,
 			String customReturn, JsonObject additionnalParams, final Handler<JsonArray> handler) {
 		JsonObject m = queryVisibleUsers(customReturn, additionnalParams, false, profile);
 		findUsers(eb, request, m, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleUsers(final EventBus eb, HttpServerRequest request, boolean itSelf, boolean profile,
 			String preFilter, String customReturn, JsonObject additionnalParams, final Handler<JsonArray> handler) {
 		JsonObject m = queryVisibleUsers(preFilter, customReturn, additionnalParams, itSelf, profile);
 		findUsers(eb, request, m, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleUsers(final EventBus eb, HttpServerRequest request, boolean itSelf, boolean profile,
 			String customReturn, JsonObject additionnalParams, final Handler<JsonArray> handler) {
 		JsonObject m = queryVisibleUsers(customReturn, additionnalParams, itSelf, profile);
 		findUsers(eb, request, m, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleUsers(final EventBus eb, String userId, boolean profile,
 				final Handler<JsonArray> handler) {
 		findVisibleUsers(eb, userId, profile, null, null, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleUsers(final EventBus eb, String userId, boolean profile,
 			String customReturn, JsonObject additionnalParams, final Handler<JsonArray> handler) {
 		JsonObject m = queryVisibleUsers(customReturn, additionnalParams, false, profile);
 		findUsers(eb, userId, m, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleUsers(final EventBus eb, String userId, boolean profile, String preFilter,
 			String customReturn, JsonObject additionnalParams, final Handler<JsonArray> handler) {
 		JsonObject m = queryVisibleUsers(preFilter, customReturn, additionnalParams, false, profile);
 		findUsers(eb, userId, m, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleUsers(final EventBus eb, String userId, boolean itSelf, boolean profile,
 			String customReturn, JsonObject additionnalParams, final Handler<JsonArray> handler) {
 		JsonObject m = queryVisibleUsers(customReturn, additionnalParams, itSelf, profile);
 		findUsers(eb, userId, m, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	private static JsonObject queryVisibleUsers(String customReturn, JsonObject additionnalParams, boolean itSelf,
 			boolean profile) {
 		return queryVisibleUsers(null, customReturn, additionnalParams, itSelf, profile);
@@ -214,6 +250,10 @@ public class UserUtils {
 	}
 
 	/* On error, handler will receive an empty JsonArray (legacy behavior) */
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibles(EventBus eb, String userId, String customReturn,
 		JsonObject additionnalParams, boolean itSelf, boolean myGroup, boolean profile,
 		final Handler<JsonArray> handler) {
@@ -221,6 +261,10 @@ public class UserUtils {
 	}
 
 	/* On error, handler will receive an empty JsonArray (legacy behavior) */
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibles(EventBus eb, String userId, String customReturn,
 		JsonObject additionnalParams, boolean itSelf, boolean myGroup, boolean profile,
 		final String acceptLanguage, final Handler<JsonArray> handler) {
@@ -228,6 +272,10 @@ public class UserUtils {
 	}
 
 	/* On error, handler will receive an empty JsonArray (legacy behavior) */
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibles(EventBus eb, String userId, String customReturn,
 			JsonObject additionnalParams, boolean itSelf, boolean myGroup, boolean profile,
 			final String acceptLanguage, String preFilter, final Handler<JsonArray> handler) {
@@ -236,6 +284,10 @@ public class UserUtils {
 		.onFailure( throwable -> handler.handle(new fr.wseduc.webutils.collections.JsonArray()) );
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static Future<JsonArray> findVisibles(EventBus eb, String userId, String customReturn,
 			JsonObject additionnalParams, boolean itSelf, boolean myGroup, boolean profile,
 			final String acceptLanguage, String preFilter, String userProfile, boolean reverseUnion) {
@@ -611,11 +663,19 @@ public class UserUtils {
 		findUsers(eb, request, m, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleProfilsGroups(final EventBus eb, HttpServerRequest request,
 												final Handler<JsonArray> handler) {
 		findUsers(eb, request, QUERY_VISIBLE_PROFILS_GROUPS, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleProfilsGroups(final EventBus eb, HttpServerRequest request,
 			String customReturn, JsonObject additionnalParams, final Handler<JsonArray> handler) {
 		JsonObject m = QUERY_VISIBLE_PROFILS_GROUPS.copy()
@@ -624,6 +684,10 @@ public class UserUtils {
 		findUsers(eb, request, m, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleProfilsGroups(final EventBus eb, String userId,
 			String customReturn, JsonObject additionnalParams, final Handler<JsonArray> handler) {
 		JsonObject m = QUERY_VISIBLE_PROFILS_GROUPS.copy()
@@ -632,6 +696,10 @@ public class UserUtils {
 		findUsers(eb, userId, m, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleProfilsGroups(final EventBus eb, String userId, String preFilter,
 			String customReturn, JsonObject additionnalParams, final Handler<JsonArray> handler) {
 		JsonObject m = QUERY_VISIBLE_PROFILS_GROUPS.copy()
@@ -643,11 +711,19 @@ public class UserUtils {
 		findUsers(eb, userId, m, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleProfilsGroups(final EventBus eb, String userId,
 												final Handler<JsonArray> handler) {
 		findUsers(eb, userId, QUERY_VISIBLE_PROFILS_GROUPS, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleProfilsGroups(final EventBus eb, String userId, boolean allowEmptyGroups,
 												final Handler<JsonArray> handler) {
 		if (allowEmptyGroups) {
@@ -679,6 +755,10 @@ public class UserUtils {
 		});
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleManualGroups(final EventBus eb, HttpServerRequest request,
 			String customReturn, JsonObject additionnalParams, final Handler<JsonArray> handler) {
 		JsonObject m = QUERY_VISIBLE_MANUAL_GROUPS.copy()
@@ -698,50 +778,141 @@ public class UserUtils {
 	 * id: recipient ID which the sender can communicate with
 	 * }
 	 */
-	public static Future<JsonArray> filterFewOrGetAllVisibles(EventBus eb, String userId, JsonArray checkIds) {
-		return filterFewOrGetAllVisibles(eb, userId, checkIds, false, null, " MATCH (visibles) RETURN DISTINCT visibles.id as id ", true);
+	public static Future<JsonArray> filterFewOrGetAllVisibles(EventBus eb, String userId, JsonArray checkIds, boolean itself) {
+		return filterFewOrGetAllVisibles(eb, userId, checkIds, itself, false);
 	}
 
-	public static Future<JsonArray> filterFewOrGetAllVisibles(EventBus eb, String userId, JsonArray checkIds,
-															  boolean itself, String language, String customReturn, boolean reverseUnion) {
-		return filterFewOrGetAllVisibles(eb, userId, checkIds, itself, language, customReturn, reverseUnion, false);
-	}
-
-	public static Future<JsonArray> filterFewOrGetAllVisibles(EventBus eb, String userId, JsonArray checkIds,
-															  boolean itself, String language, String customReturn, boolean reverseUnion, boolean includeHidden) {
+	public static Future<JsonArray> filterFewOrGetAllVisibles(EventBus eb, String userId, JsonArray checkIds,boolean itself, boolean includeHidden) {
 		if(StringUtils.isEmpty(userId) || checkIds == null || checkIds.isEmpty()) {
 			return Future.succeededFuture(new JsonArray());
 		}
 		final List<Future<JsonArray>> visibleFutures = new ArrayList<>();
-		final JsonObject params = new JsonObject();
-		if(checkIds.size() < getMaxCheckIdsSize()) {
-			params.put(EXPECTED_IDS_USERS_GROUPS, checkIds);
-		}
-		// Add includeHidden parameter for communication service
-		if (includeHidden) {
-			params.put("includeHidden", true);
-		}
-		
-		visibleFutures.add(findVisibles(eb,
-				userId,
-				customReturn,
-				params,
-				itself,
-				true,
-				false,
-				language,
-				null,
-				null,
-				reverseUnion
+		final List<String> expectedVisiblesIds = checkIds.size() < getMaxCheckIdsSize()
+				? checkIds.stream().map(String.class::cast).collect(Collectors.toList())
+				: null;
+
+		visibleFutures.add(findVisibleIdentities(eb, new VisibleIdentityRequest()
+						.setUserId(userId)
+						.setExpectedVisiblesIds(expectedVisiblesIds)
+						.setIncludeHiddenCommunity(includeHidden)
+						.setItSelf(itself)
 		));
 
 		return Future.all(visibleFutures)
-				.map(futures -> {
-					return futures.list().stream()
-							.map(JsonArray.class::cast)
-							.flatMap(arr -> arr.stream().map(JsonObject.class::cast))
-							.collect(Collector.of(JsonArray::new, JsonArray::add, JsonArray::add));
-				});
+				.map(futures -> futures.list().stream()
+                        .map(JsonArray.class::cast)
+                        .flatMap(arr -> arr.stream().map(JsonObject.class::cast))
+                        .collect(Collector.of(JsonArray::new, JsonArray::add, JsonArray::add)));
+	}
+
+	/**
+	 * Members of the given groups that the user can see, whatever the path they are visible through.
+	 * <p>
+	 * The groups are used as sets, not as communication channels : a member is returned as soon as the user can see
+	 * him/her, even if the group itself is not visible or does not let its members be seen (no users property, as on
+	 * the function and discipline groups). This is the semantic of the former "MATCH (g:Group)<-[:IN]-(visibles)"
+	 * queries. To get the users seen through a group, use {@link VisibleIdentityRequest.VisibleIdFilter#USERS_OF_GROUPS}.
+	 * <p>
+	 * Members are read first, then their visibility is checked in a single call.
+	 * @param userId id of the user doing the request
+	 * @param groupIds ids of the groups
+	 * @param itSelf whether the user may be part of the result
+	 * @return JsonArray of JsonObjects : { id, displayName, lastName, profiles }
+	 */
+	public static Future<JsonArray> findVisibleMembersOfGroups(EventBus eb, String userId, List<String> groupIds, boolean itSelf) {
+		if (StringUtils.isEmpty(userId) || groupIds == null || groupIds.isEmpty()) {
+			return Future.succeededFuture(new JsonArray());
+		}
+		final Promise<JsonArray> promise = Promise.promise();
+		final String query =
+				"MATCH (g:Group)<-[:IN]-(u:User) WHERE g.id IN {groupIds} " +
+				"RETURN DISTINCT u.id as id, u.displayName as displayName, u.lastName as lastName, u.profiles as profiles ";
+		Neo4j.getInstance().execute(query, new JsonObject().put("groupIds", new JsonArray(groupIds)), Neo4jResult.validResultHandler(members -> {
+			if (members.isRight()) {
+				promise.complete(members.right().getValue());
+			} else {
+				promise.fail(members.left().getValue());
+			}
+		}));
+		return promise.future().compose(members -> {
+			final JsonArray memberIds = new JsonArray(members.stream()
+					.map(o -> ((JsonObject) o).getString("id"))
+					.collect(Collectors.toList()));
+			return filterFewOrGetAllVisibles(eb, userId, memberIds, itSelf).map(visibles -> {
+				final Set<String> visibleIds = visibles.stream()
+						.map(o -> ((JsonObject) o).getString("id"))
+						.collect(Collectors.toSet());
+				return members.stream()
+						.filter(o -> visibleIds.contains(((JsonObject) o).getString("id")))
+						.collect(Collector.of(JsonArray::new, JsonArray::add, JsonArray::addAll));
+			});
+		});
+	}
+
+	public static Future<JsonArray> findVisibleIdentities(EventBus eb, VisibleIdentityRequest request) {
+		JsonObject m = new JsonObject()
+				.put("request", JsonObject.mapFrom(request))
+				.put("action", "visiblesIdentities");
+		Promise<JsonArray> promise = Promise.promise();
+		eb.request(COMMUNICATION_USERS, m, new DeliveryOptions().setSendTimeout(getFindVisiblesTimeout()), (Handler<AsyncResult<Message<JsonArray>>>) res -> {
+            if (res.succeeded()) {
+                JsonArray r = res.result().body();
+                log.info("UserUtils.findVisibles - r.size = " + r.size()); // TODO JBER : exposer métrique
+                promise.complete(r);
+            } else {
+                log.error("An error occurred while fetching visible users for user " + request.getUserId(), res.cause());
+                promise.fail(res.cause());
+            }
+        });
+		return promise.future();
+	}
+
+	/**
+	 * List the relatives of the given users, keeping only the users that are visible to the requesting user.
+	 * The visibility rule applies to the users passed in, not to their relatives : a relative is returned as
+	 * soon as one of its children is both in userIds and visible.
+	 * <p>
+	 * Visibility and data are read in two steps : the visible ids first, then the relatives of those ids. The
+	 * intermediate list never exceeds userIds, which the caller has already bounded.
+	 * @param userId id of the user doing the request
+	 * @param userIds ids of the users whose relatives are looked up
+	 * @return JsonArray of JsonObjects : { id: "id of the relative" }
+	 */
+	public static Future<JsonArray> findVisibleRelatives(EventBus eb, String userId, List<String> userIds) {
+		if (userIds == null || userIds.isEmpty()) {
+			return Future.succeededFuture(new JsonArray());
+		}
+		final VisibleIdentityRequest request = new VisibleIdentityRequest()
+				.setUserId(userId)
+				.setPublicDetails(false)
+				.setExpectedVisiblesIds(userIds);
+		return findVisibleIdentities(eb, request).compose(visibles -> {
+			final JsonArray visibleUserIds = new JsonArray();
+			visibles.forEach(o -> {
+				if (!(o instanceof JsonObject)) return;
+				final JsonObject visible = (JsonObject) o;
+				if (Boolean.TRUE.equals(visible.getBoolean("isUser"))) {
+					visibleUserIds.add(visible.getString("id"));
+				}
+			});
+			if (visibleUserIds.isEmpty()) {
+				return Future.succeededFuture(new JsonArray());
+			}
+			final JsonObject m = new JsonObject()
+					.put("action", "list-relatives")
+					.put("userIds", visibleUserIds);
+			final Promise<JsonArray> promise = Promise.promise();
+			eb.request(DIRECTORY, m, (Handler<AsyncResult<Message<JsonObject>>>) res -> {
+				if (res.failed()) {
+					promise.fail(res.cause());
+				} else if (!"ok".equals(res.result().body().getString("status"))) {
+					promise.fail(res.result().body().getString("message", "list.relatives.error"));
+				} else {
+					promise.complete(res.result().body().getJsonArray("result", new JsonArray()));
+				}
+			});
+			return promise.future();
+		});
 	}
 
 	public static void getSession(EventBus eb, final HttpServerRequest request,

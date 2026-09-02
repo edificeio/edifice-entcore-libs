@@ -16,6 +16,7 @@
 
 package org.entcore.common.s3;
 
+import fr.wseduc.webutils.http.UriEncoder;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.file.OpenOptions;
@@ -45,10 +46,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.*;
 import java.net.URI;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
 import java.nio.channels.ClosedChannelException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -105,7 +103,7 @@ public class S3Client {
 		RequestOptions requestOptions = new RequestOptions()
 			.setMethod(HttpMethod.HEAD)
 			.setHost(host)
-			.setURI("/" + bucket + "/" + id);
+			.setURI("/" + bucket + "/" + encodeUrlPath(id));
 
 		httpClient.request(requestOptions)
 			.flatMap(req -> {
@@ -332,7 +330,7 @@ public class S3Client {
 			.setMethod(HttpMethod.GET)
 			.setHost(host)
 			.setTimeout(S3_DOWNLOAD_TIMEOUT_IN_MILLISECONDS)
-			.setURI("/" + bucket + "/" + fileId);
+			.setURI("/" + bucket + "/" + encodeUrlPath(fileId));
 		final String range = request.getHeader("Range");
 		if (!StringUtils.isEmpty(range)) {
 			requestOptions.addHeader("Range", range);
@@ -421,7 +419,7 @@ public class S3Client {
 		RequestOptions requestOptions = new RequestOptions()
 			.setMethod(HttpMethod.GET)
 			.setHost(host)
-			.setURI("/" + bucket + "/" + idPrefixed);
+			.setURI("/" + bucket + "/" + encodeUrlPath(idPrefixed));
 
 		httpClient.request(requestOptions)
 				.flatMap(req -> {
@@ -477,7 +475,7 @@ public class S3Client {
 		RequestOptions requestOptions = new RequestOptions()
 			.setMethod(HttpMethod.GET)
 			.setHost(host)
-			.setURI("/" + bucket + "/" + fileId);
+			.setURI("/" + bucket + "/" + encodeUrlPath(fileId));
 
 		httpClient.request(requestOptions)
 			.flatMap(req -> {
@@ -511,7 +509,7 @@ public class S3Client {
 		RequestOptions requestOptions = new RequestOptions()
 			.setMethod(HttpMethod.PUT)
 			.setHost(host)
-			.setURI("/" + bucket + "/" + id);
+			.setURI("/" + bucket + "/" + encodeUrlPath(id));
 
 		httpClient.request(requestOptions)
 			.flatMap(req -> {
@@ -591,14 +589,14 @@ public class S3Client {
 		RequestOptions requestOptions = new RequestOptions()
 			.setMethod(HttpMethod.PUT)
 			.setHost(host)
-			.setURI("/" + bucket + "/" + id);
+			.setURI("/" + bucket + "/" + encodeUrlPath(id));
 
 		httpClient.request(requestOptions)
 			.flatMap(req -> {
 				AwsUtils.setSSECCopy(req, ssec);
 				// Set before signing: SigV4 collects the x-amz-* headers carried by the request at signature
 				// time, and S3 rejects the request naming any x-amz-* header absent from SignedHeaders.
-				req.putHeader("x-amz-copy-source", "/" + bucket + "/" + getPath(from));
+				req.putHeader("x-amz-copy-source", "/" + bucket + "/" + encodeUrlPath(getPath(from)));
 				try {
 					AwsUtils.sign(req, accessKey, secretKey, region);
 				} catch (SignatureException e) {
@@ -718,49 +716,18 @@ public class S3Client {
   public Future<JsonObject> writeFromFileSystem(final String s3Path, String fsPath) {
     final Promise<JsonObject> promise = Promise.promise();
     MultipartUpload multipartUpload = new MultipartUpload(vertx, httpClient, host, accessKey, secretKey, region, defaultBucket, ssec);
-    final String id = encodeUrlPath(s3Path);
-    multipartUpload.upload(fsPath, id, result -> promise.complete(new JsonObject().put("_id", id).put("status", result.getString("status")).put("message", result.getValue("message"))));
+    multipartUpload.upload(fsPath, s3Path, result -> promise.complete(new JsonObject().put("_id", s3Path).put("status", result.getString("status")).put("message", result.getValue("message"))));
     return promise.future();
   }
 
 
   public static String encodeUrlPath(String path) {
-    String[] segments = path.split("/");
-    StringBuilder result = new StringBuilder();
-
-    for (int i = 0; i < segments.length; i++) {
-      if (i > 0) {
-        result.append("/");
-      }
-      // Encode each segment separately
-      try {
-        result.append(URLEncoder.encode(segments[i], StandardCharsets.UTF_8.name()));
-      } catch (UnsupportedEncodingException e) {
-        result.append(URLEncoder.encode(segments[i]));
-      }
-    }
-
-    return result.toString();
+    return UriEncoder.encodePath(path);
   }
 
 
   public static String decodePath(String path) {
-    String[] segments = path.split("/");
-    StringBuilder result = new StringBuilder();
-
-    for (int i = 0; i < segments.length; i++) {
-      if (i > 0) {
-        result.append("/");
-      }
-      // Encode each segment separately
-      try {
-        result.append(URLDecoder.decode(segments[i], StandardCharsets.UTF_8.name()));
-      } catch (UnsupportedEncodingException e) {
-        result.append(URLDecoder.decode(segments[i]));
-      }
-    }
-
-    return result.toString();
+    return UriEncoder.decode(path);
   }
 
 	public void writeBufferStream(final String id, ReadStream<Buffer> bufferReadStream, String contentType, String filename, Handler<AsyncResult<JsonObject>> handler) {
@@ -856,20 +823,10 @@ public class S3Client {
 		final Map<String, String> params = new HashMap<>();
 		params.put("list-type", "2");
 		if (prefix != null) {
-			try {
-				params.put("prefix", URLEncoder.encode(prefix, StandardCharsets.UTF_8.toString()));
-			} catch (UnsupportedEncodingException e) {
-				handler.handle(failedFuture("Error encoding prefix in listBucketRecursive method"));
-				return;
-			}
+			params.put("prefix", UriEncoder.encode(prefix));
 		}
 		if (continuationToken != null) {
-			try {
-				params.put("continuation-token", URLEncoder.encode(continuationToken, StandardCharsets.UTF_8.toString()));
-			} catch (UnsupportedEncodingException e) {
-				handler.handle(failedFuture("Error encoding continuation token in listBucketRecursive method"));
-				return;
-			}
+			params.put("continuation-token", UriEncoder.encode(continuationToken));
 		}
 		url.append(params.keySet().stream().sorted()
 				.map(key -> key + '=' + params.get(key))
@@ -1040,20 +997,10 @@ public class S3Client {
 		final Map<String, String> params = new HashMap<>();
 		params.put("list-type", "2");
 		if (prefix != null) {
-			try {
-				params.put("prefix", URLEncoder.encode(prefix, StandardCharsets.UTF_8.toString()));
-			} catch (UnsupportedEncodingException e) {
-				promise.fail(new StorageException("Error encoding prefix in listBucketRecursive method"));
-				return;
-			}
+			params.put("prefix", UriEncoder.encode(prefix));
 		}
 		if (continuationToken != null) {
-			try {
-				params.put("continuation-token", URLEncoder.encode(continuationToken, StandardCharsets.UTF_8.toString()));
-			} catch (UnsupportedEncodingException e) {
-				promise.fail(new StorageException("Error encoding continuation token in listBucketRecursive method"));
-				return;
-			}
+			params.put("continuation-token", UriEncoder.encode(continuationToken));
 		}
 		url.append(params.keySet().stream().sorted()
 				.map(key -> key + '=' + params.get(key))

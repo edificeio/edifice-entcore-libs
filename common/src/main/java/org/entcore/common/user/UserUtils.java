@@ -41,6 +41,7 @@ import io.vertx.core.logging.LoggerFactory;
 import io.vertx.core.shareddata.LocalMap;
 import org.entcore.common.neo4j.Neo4j;
 import org.entcore.common.session.SessionRecreationRequest;
+import org.entcore.common.user.dto.VisibleIdentityRequest;
 import org.entcore.common.utils.HostUtils;
 import org.entcore.common.utils.StringUtils;
 import org.entcore.common.validation.StringValidation;
@@ -53,7 +54,6 @@ import java.util.stream.Collectors;
 import static fr.wseduc.webutils.Utils.*;
 import static fr.wseduc.webutils.http.Renders.unauthorized;
 import static org.entcore.common.http.filter.AppOAuthResourceProvider.getTokenId;
-import static org.entcore.common.share.ShareService.EXPECTED_IDS_USERS_GROUPS;
 
 public class UserUtils {
 
@@ -707,20 +707,15 @@ public class UserUtils {
 			return Future.succeededFuture(new JsonArray());
 		}
 		final List<Future<JsonArray>> visibleFutures = new ArrayList<>();
-		final JsonObject params = new JsonObject();
-		if(checkIds.size() < getMaxCheckIdsSize()) {
-			params.put(EXPECTED_IDS_USERS_GROUPS, checkIds);
-		}
-		// Add includeHidden parameter for communication service
-		if (includeHidden) {
-			params.put("includeHidden", true);
-		}
-		
-		visibleFutures.add(findVisibleIdentity(eb,
-				userId,
-				itself,
-				includeHidden,
-				params
+		final List<String> expectedVisiblesIds = checkIds.size() < getMaxCheckIdsSize()
+				? checkIds.stream().map(String.class::cast).collect(Collectors.toList())
+				: null;
+
+		visibleFutures.add(findVisibleIdentity(eb, new VisibleIdentityRequest()
+						.setUserId(userId)
+						.setExpectedVisiblesIds(expectedVisiblesIds)
+						.setIncludeHiddenCommunity(includeHidden)
+						.setItSelf(itself)
 		));
 
 		return Future.all(visibleFutures)
@@ -730,15 +725,10 @@ public class UserUtils {
                         .collect(Collector.of(JsonArray::new, JsonArray::add, JsonArray::add)));
 	}
 
-	private static Future<JsonArray> findVisibleIdentity(EventBus eb, String userId, boolean itSelf, boolean includeHidden, JsonObject params) {
+	public static Future<JsonArray> findVisibleIdentity(EventBus eb, VisibleIdentityRequest request) {
 		JsonObject m = new JsonObject()
-				.put("itself", itSelf)
-				.put("includeHidden", includeHidden)
+				.put("request", JsonObject.mapFrom(request))
 				.put("action", "visiblesIdentities");
-		if (params != null) {
-			m.put("params", params);
-		}
-		m.put("userId", userId);
 		Promise<JsonArray> promise = Promise.promise();
 		eb.request(COMMUNICATION_USERS, m, new DeliveryOptions().setSendTimeout(getFindVisiblesTimeout()), (Handler<AsyncResult<Message<JsonArray>>>) res -> {
             if (res.succeeded()) {
@@ -746,7 +736,7 @@ public class UserUtils {
                 log.info("UserUtils.findVisibles - r.size = " + r.size()); // TODO JBER : exposer métrique
                 promise.complete(r);
             } else {
-                log.error("An error occurred while fetching visible users for user " + userId, res.cause());
+                log.error("An error occurred while fetching visible users for user " + request.getUserId(), res.cause());
                 promise.fail(res.cause());
             }
         });

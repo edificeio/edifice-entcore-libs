@@ -34,7 +34,6 @@ import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -55,7 +54,6 @@ import java.util.stream.Collectors;
 import static fr.wseduc.webutils.Utils.*;
 import static fr.wseduc.webutils.http.Renders.unauthorized;
 import static org.entcore.common.http.filter.AppOAuthResourceProvider.getTokenId;
-import static org.entcore.common.share.ShareService.EXPECTED_IDS_USERS_GROUPS;
 
 public class UserUtils {
 
@@ -709,18 +707,13 @@ public class UserUtils {
 			return Future.succeededFuture(new JsonArray());
 		}
 		final List<Future<JsonArray>> visibleFutures = new ArrayList<>();
-		final JsonObject params = new JsonObject();
-		if(checkIds.size() < getMaxCheckIdsSize()) {
-			params.put(EXPECTED_IDS_USERS_GROUPS, checkIds);
-		}
-		// Add includeHidden parameter for communication service
-		if (includeHidden) {
-			params.put("includeHidden", true);
-		}
-		
+		final List<String> expectedVisiblesIds = checkIds.size() < getMaxCheckIdsSize()
+				? checkIds.stream().map(String.class::cast).collect(Collectors.toList())
+				: null;
+
 		visibleFutures.add(findVisibleIdentity(eb, new VisibleIdentityRequest()
 						.setUserId(userId)
-						.setParams(params)
+						.setExpectedVisiblesIds(expectedVisiblesIds)
 						.setIncludeHiddenCommunity(includeHidden)
 						.setItSelf(itself)
 		));
@@ -734,7 +727,7 @@ public class UserUtils {
 
 	public static Future<JsonArray> findVisibleIdentity(EventBus eb, VisibleIdentityRequest request) {
 		JsonObject m = new JsonObject()
-				.put("request", Json.encode(request))
+				.put("request", JsonObject.mapFrom(request))
 				.put("action", "visiblesIdentities");
 		Promise<JsonArray> promise = Promise.promise();
 		eb.request(COMMUNICATION_USERS, m, new DeliveryOptions().setSendTimeout(getFindVisiblesTimeout()), (Handler<AsyncResult<Message<JsonArray>>>) res -> {

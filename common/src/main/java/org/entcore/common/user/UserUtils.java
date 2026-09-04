@@ -34,6 +34,7 @@ import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -41,6 +42,7 @@ import io.vertx.core.logging.LoggerFactory;
 import io.vertx.core.shareddata.LocalMap;
 import org.entcore.common.neo4j.Neo4j;
 import org.entcore.common.session.SessionRecreationRequest;
+import org.entcore.common.user.dto.VisibleIdentityRequest;
 import org.entcore.common.utils.HostUtils;
 import org.entcore.common.utils.StringUtils;
 import org.entcore.common.validation.StringValidation;
@@ -716,11 +718,11 @@ public class UserUtils {
 			params.put("includeHidden", true);
 		}
 		
-		visibleFutures.add(findVisibleIdentity(eb,
-				userId,
-				itself,
-				includeHidden,
-				params
+		visibleFutures.add(findVisibleIdentity(eb, new VisibleIdentityRequest()
+						.setUserId(userId)
+						.setParams(params)
+						.setIncludeHiddenCommunity(includeHidden)
+						.setItSelf(itself)
 		));
 
 		return Future.all(visibleFutures)
@@ -730,15 +732,10 @@ public class UserUtils {
                         .collect(Collector.of(JsonArray::new, JsonArray::add, JsonArray::add)));
 	}
 
-	private static Future<JsonArray> findVisibleIdentity(EventBus eb, String userId, boolean itSelf, boolean includeHidden, JsonObject params) {
+	public static Future<JsonArray> findVisibleIdentity(EventBus eb, VisibleIdentityRequest request) {
 		JsonObject m = new JsonObject()
-				.put("itself", itSelf)
-				.put("includeHidden", includeHidden)
+				.put("request", Json.encode(request))
 				.put("action", "visiblesIdentities");
-		if (params != null) {
-			m.put("params", params);
-		}
-		m.put("userId", userId);
 		Promise<JsonArray> promise = Promise.promise();
 		eb.request(COMMUNICATION_USERS, m, new DeliveryOptions().setSendTimeout(getFindVisiblesTimeout()), (Handler<AsyncResult<Message<JsonArray>>>) res -> {
             if (res.succeeded()) {
@@ -746,7 +743,7 @@ public class UserUtils {
                 log.info("UserUtils.findVisibles - r.size = " + r.size()); // TODO JBER : exposer métrique
                 promise.complete(r);
             } else {
-                log.error("An error occurred while fetching visible users for user " + userId, res.cause());
+                log.error("An error occurred while fetching visible users for user " + request.getUserId(), res.cause());
                 promise.fail(res.cause());
             }
         });

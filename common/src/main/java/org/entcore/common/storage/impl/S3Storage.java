@@ -53,7 +53,6 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import static org.entcore.common.s3.S3Client.encodeUrlPath;
 
 public class S3Storage implements Storage {
     
@@ -328,7 +327,7 @@ public class S3Storage implements Storage {
     @Override
     public Future<Void> copyDirectoryToFs(String srcDir, String targetDir) {
         return this.fs.mkdirs(targetDir)
-            .compose(e -> s3Client.listFilesByPrefix(encodeUrlPath(srcDir.charAt(0) == '/' ? srcDir.replaceFirst("/", "") : srcDir)))
+            .compose(e -> s3Client.listFilesByPrefix(srcDir.charAt(0) == '/' ? srcDir.replaceFirst("/", "") : srcDir))
             .compose(s3FilePaths -> downloadToFs(s3FilePaths, srcDir, targetDir, false));
     }
 

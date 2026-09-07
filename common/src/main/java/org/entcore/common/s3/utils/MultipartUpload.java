@@ -36,6 +36,8 @@ public class MultipartUpload {
 
     private static final Logger log = LoggerFactory.getLogger(MultipartUpload.class);
 
+    private static final int MAX_UPLOAD_ATTEMPTS = 6;
+
     protected final Vertx vertx;
     protected final ResilientHttpClient httpClient;
 
@@ -265,7 +267,7 @@ public class MultipartUpload {
                         }
                     });
 
-                    if (chunk.getRetryIndex() < 6) {
+                    if (chunk.getRetryIndex() < MAX_UPLOAD_ATTEMPTS) {
                         uploadPart(id, uploadId, chunk, handler);
                     }
                     else {
@@ -275,9 +277,33 @@ public class MultipartUpload {
                 }
             })
             .onFailure(exception -> {
+                chunk.incrementRetryIndex();
+
                 log.warn("An exception occurred while uploading file=" + id + " with uploadId=" + uploadId, exception);
-                handler.handle(null);
+
+                if (isRetriable(exception) && chunk.getRetryIndex() < MAX_UPLOAD_ATTEMPTS) {
+                    uploadPart(id, uploadId, chunk, handler);
+                }
+                else {
+                    log.warn("The upload of file=" + id + " with uploadId=" + uploadId + " was not retried or retried too many times (index=" + chunk.getRetryIndex() + ")");
+                    handler.handle(null);
+                }
             });
+    }
+
+    /**
+     * Détermine si une exception d'upload est transitoire et mérite un rejeu.
+     * Les erreurs déterministes (DNS, SSL/config) échoueraient à l'identique : inutile de réessayer.
+     */
+    private static boolean isRetriable(Throwable t) {
+        while (t != null) {
+            if (t instanceof java.net.UnknownHostException  // DNS : hôte introuvable
+             || t instanceof javax.net.ssl.SSLException) {  // handshake / certificat : problème de config
+                return false;
+            }
+            t = t.getCause();
+        }
+        return true;
     }
 
     public void complete(final String id, final String uploadId, final List<String> eTags, final Handler<Boolean> handler) {

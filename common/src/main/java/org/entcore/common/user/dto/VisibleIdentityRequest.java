@@ -15,6 +15,12 @@ public class VisibleIdentityRequest {
     private List<String> includedVisibleIds;
     private boolean publicDetails;
     private String search;
+    private VisibleIdFilter visibleIdFilter = VisibleIdFilter.BOTH;
+
+    public enum VisibleIdFilter {
+        GROUPS,
+        BOTH;
+    }
 
     public String getUserId() {
         return userId;
@@ -99,6 +105,17 @@ public class VisibleIdentityRequest {
 
     public VisibleIdentityRequest setSearch(String search) {
         this.search = search;
+        return this;
+    }
+
+    public VisibleIdFilter getVisibleIdFilter() {
+        return visibleIdFilter;
+    }
+
+    public VisibleIdentityRequest setVisibleIdFilter(VisibleIdFilter visibleIdFilter) {
+        if(visibleIdFilter != null) {
+            this.visibleIdFilter = visibleIdFilter;
+        }
         return this;
     }
 }

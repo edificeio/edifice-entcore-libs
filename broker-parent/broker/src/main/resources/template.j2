@@ -13,7 +13,11 @@
     "sql": false,
     "neo4j": false,
     "probes": [
-      "org.entcore.broker.client.NATSProbe"
+      {
+        "name": "org.entcore.broker.client.NATSProbe"
+        "readiness": false,
+        "liveness": true
+      }
     ],
     "broker-type": "{{ brokerType | default('nats') }}",
     {% if brokerType is defined and brokerType == 'nats' %}

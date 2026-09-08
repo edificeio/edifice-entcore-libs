@@ -711,7 +711,7 @@ public class UserUtils {
 				? checkIds.stream().map(String.class::cast).collect(Collectors.toList())
 				: null;
 
-		visibleFutures.add(findVisibleIdentity(eb, new VisibleIdentityRequest()
+		visibleFutures.add(findVisibleIdentities(eb, new VisibleIdentityRequest()
 						.setUserId(userId)
 						.setExpectedVisiblesIds(expectedVisiblesIds)
 						.setIncludeHiddenCommunity(includeHidden)
@@ -725,7 +725,7 @@ public class UserUtils {
                         .collect(Collector.of(JsonArray::new, JsonArray::add, JsonArray::add)));
 	}
 
-	public static Future<JsonArray> findVisibleIdentity(EventBus eb, VisibleIdentityRequest request) {
+	public static Future<JsonArray> findVisibleIdentities(EventBus eb, VisibleIdentityRequest request) {
 		JsonObject m = new JsonObject()
 				.put("request", JsonObject.mapFrom(request))
 				.put("action", "visiblesIdentities");

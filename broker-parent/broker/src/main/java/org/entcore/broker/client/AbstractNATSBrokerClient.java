@@ -132,6 +132,10 @@ public abstract class AbstractNATSBrokerClient implements BrokerClient {
             return failedFuture("No clients were defined in the configuration");
         }
         for (NatsClient client : clients) {
+            // Registered before connect() completes: the same NatsClient instance is reused
+            // across reconnects, so the probe can observe status transitions (CONNECTING,
+            // RECONNECTING, ...) rather than just the initial connect outcome.
+            NATSConnectionRegistry.register(client);
             Future<Void> connectFuture = client.connect()
                 .onSuccess(e -> {
                     if (client.getConnection() != null) {
@@ -198,6 +202,7 @@ public abstract class AbstractNATSBrokerClient implements BrokerClient {
         // Close all NATS clients
         List<Future<Void>> closeFutures = new ArrayList<>();
         for (NatsClient client : getAllNatsClients()) {
+            NATSConnectionRegistry.unregister(client);
             closeFutures.add(client.close()
                 .onFailure(e -> log.error("Error while closing NATS client", e)));
         }

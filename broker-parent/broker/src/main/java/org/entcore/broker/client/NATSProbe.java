@@ -2,57 +2,53 @@ package org.entcore.broker.client;
 
 import fr.wseduc.webutils.metrics.HealthCheckProbe;
 import fr.wseduc.webutils.metrics.HealthCheckProbeResult;
+import io.nats.client.Connection;
+import io.nats.vertx.NatsClient;
 import io.vertx.core.Future;
-import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
-import io.vertx.core.eventbus.DeliveryOptions;
-import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.logging.Logger;
-import io.vertx.core.logging.LoggerFactory;
-import org.apache.commons.lang3.StringUtils;
-import org.entcore.broker.api.dto.NATSResponseDTO;
-import org.entcore.broker.api.utils.BrokerProxyUtils;
-import org.entcore.broker.listener.ProbeListener;
-import org.entcore.broker.listener.ProbeResponseDTO;
 
-import java.nio.charset.StandardCharsets;
-import java.util.UUID;
+import java.util.List;
 
 import static io.vertx.core.Future.succeededFuture;
 
+/**
+ * Health probe reporting whether the broker's NATS client(s) are connected.
+ * <br>
+ * Reads the {@link Connection.Status} of each {@link NatsClient} registered in
+ * {@link NATSConnectionRegistry} directly, instead of round-tripping through the event bus
+ * (which only verified that the local event bus was alive, not NATS itself).
+ */
 public class NATSProbe implements HealthCheckProbe {
-    private static final Logger log = LoggerFactory.getLogger(NATSProbe.class);
+
     private Vertx vertx;
+
     @Override
-    public Future<Void> init(Vertx vertx, JsonObject jsonObject) {
+    public Future<Void> init(final Vertx vertx, final JsonObject config) {
         this.vertx = vertx;
-        BrokerProxyUtils.addBrokerProxy(new ProbeListener(vertx), vertx);
         return succeededFuture();
     }
 
     @Override
     public Future<HealthCheckProbeResult> probe() {
-        final Promise<HealthCheckProbeResult> promise = Promise.promise();
-        vertx.eventBus().request("vertx.hck", new JsonObject().put("data", UUID.randomUUID().toString()).encode().getBytes(StandardCharsets.UTF_8), new DeliveryOptions().setLocalOnly(true), reply -> {
-            try {
-                if (reply.succeeded()) {
-                    final NATSResponseDTO response = Json.decodeValue(reply.result().body().toString(), NATSResponseDTO.class);
-                    if (StringUtils.isBlank(response.getErr())) {
-                        promise.complete(new HealthCheckProbeResult(getName(), true, null));
-                    } else {
-                        promise.complete(new HealthCheckProbeResult(getName(), false, new JsonObject().put("error", "Invalid response")));
-                    }
-                } else {
-                    log.error("Error while probing NATS", reply.cause());
-                    promise.complete(new HealthCheckProbeResult(getName(), false, new JsonObject().put("error", reply.cause().getMessage())));
-                }
-            } catch (Exception e) {
-                log.error("Error while probing NATS", e);
-                promise.complete(new HealthCheckProbeResult(getName(), false, new JsonObject().put("error", e.getMessage())));
-            }
-        });
-        return promise.future();
+        final List<NatsClient> clients = NATSConnectionRegistry.getClients();
+        if (clients.isEmpty()) {
+            return succeededFuture(new HealthCheckProbeResult(getName(), false,
+                new JsonObject().put("error", "No NATS client registered")));
+        }
+
+        final JsonObject connections = new JsonObject();
+        boolean allConnected = true;
+        for (final NatsClient client : clients) {
+            final Connection connection = client.getConnection();
+            final Connection.Status status = connection == null ? null : connection.getStatus();
+            final String url = connection == null ? "unknown" : connection.getConnectedUrl();
+            connections.put(url, status == null ? "UNKNOWN" : status.name());
+            allConnected = allConnected && status == Connection.Status.CONNECTED;
+        }
+
+        return succeededFuture(new HealthCheckProbeResult(getName(), allConnected,
+            allConnected ? null : new JsonObject().put("connections", connections)));
     }
 
     @Override

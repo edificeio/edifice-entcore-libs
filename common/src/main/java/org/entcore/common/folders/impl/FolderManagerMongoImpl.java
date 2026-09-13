@@ -134,15 +134,19 @@ public class FolderManagerMongoImpl implements FolderManager {
 	
 	protected Future<Boolean> isDuplicate(Optional<String> parentId, String id, String name, String type){
 		if(allowDuplicate) return Future.succeededFuture(false);
-		if(parentId.isPresent()) {
-			DocumentQueryBuilder builder = queryHelper.queryBuilder().withParent(parentId.get()).withNameEq(name).withFileType(type);
-			if(id != null){
-				builder.withIdNotEq(id);
-			}
-			return queryHelper.countAll(builder).map(e -> e > 0);
-		} else {
-			return Future.succeededFuture(false);
-		}
+        DocumentQueryBuilder builder = queryHelper.queryBuilder().withNameEq(name).withFileType(type);
+
+        if(parentId.isPresent()) {
+            builder.withParent(parentId.get());
+        } else {
+            builder.withParent(null);
+        }
+	
+        if(id != null){
+            builder.withIdNotEq(id);
+        }
+		
+        return queryHelper.countAll(builder).map(e -> e > 0);
 	}
 
 	protected Future<JsonObject> renameFileOnDuplicate(Optional<String> parentId, JsonObject file){

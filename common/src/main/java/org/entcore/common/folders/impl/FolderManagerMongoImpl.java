@@ -139,7 +139,7 @@ public class FolderManagerMongoImpl implements FolderManager {
         if(parentId.isPresent()) {
             builder.withParent(parentId.get());
         } else {
-            builder.withParent(null);
+            builder.withHavingParent(false);
         }
 	
         if(id != null){

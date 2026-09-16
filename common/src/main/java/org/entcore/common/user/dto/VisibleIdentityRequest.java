@@ -16,6 +16,8 @@ public class VisibleIdentityRequest {
     private boolean publicDetails;
     private String search;
     private VisibleIdFilter visibleIdFilter = VisibleIdFilter.BOTH;
+    private String workflowRightFilter;
+    private boolean onlyActivatedUsers;
 
     public enum VisibleIdFilter {
         GROUPS,
@@ -116,6 +118,32 @@ public class VisibleIdentityRequest {
         if(visibleIdFilter != null) {
             this.visibleIdFilter = visibleIdFilter;
         }
+        return this;
+    }
+
+    /**
+     * Filter users against a particular workflow right (don't apply to group)
+     * @return
+     */
+    public String getWorkflowRightFilter() {
+        return workflowRightFilter;
+    }
+
+    public VisibleIdentityRequest setWorkflowRightFilter(String workflowRightFilter) {
+        this.workflowRightFilter = workflowRightFilter;
+        return this;
+    }
+
+    /**
+     * Filter only activated users
+     * @return
+     */
+    public boolean isOnlyActivatedUsers() {
+        return onlyActivatedUsers;
+    }
+
+    public VisibleIdentityRequest setOnlyActivatedUsers(boolean onlyActivatedUsers) {
+        this.onlyActivatedUsers = onlyActivatedUsers;
         return this;
     }
 }

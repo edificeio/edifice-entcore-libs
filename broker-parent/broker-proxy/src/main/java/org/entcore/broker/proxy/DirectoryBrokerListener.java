@@ -102,4 +102,13 @@ public interface DirectoryBrokerListener {
    */
   @BrokerListener(subject = "directory.users.get.bygroupids", proxy = true)
   Future<GetUsersFromGroupsResponseDTO> getUsersFromGroups(GetUsersFromGroupsRequestDTO request);
+
+
+  /**
+   * This endpoint retrieves all structures matching the supplied criteria (all structures if criteria are empty).
+   * @param request Criteria that structures should match
+   * @return List of structures matching the criteria
+   */
+  @BrokerListener(subject = "directory.structures.search", proxy = true)
+  Future<SearchStructuresResponseDTO> searchStructures(final SearchStructuresRequestDTO request);
 }

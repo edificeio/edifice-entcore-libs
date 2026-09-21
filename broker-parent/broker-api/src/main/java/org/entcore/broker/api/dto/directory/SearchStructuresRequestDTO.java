@@ -8,11 +8,15 @@ import java.util.Set;
 public class SearchStructuresRequestDTO {
     private final String name;
     private final Set<String> ids;
+    private final boolean withParents;
 
     @JsonCreator
-    public SearchStructuresRequestDTO(@JsonProperty("name") String name, @JsonProperty("ids") Set<String> ids) {
+    public SearchStructuresRequestDTO(@JsonProperty("name") String name,
+                                      @JsonProperty("ids") Set<String> ids,
+                                      @JsonProperty("withParents") boolean withParents) {
         this.name = name;
         this.ids = ids;
+        this.withParents = withParents;
     }
 
     public String getName() {
@@ -21,5 +25,9 @@ public class SearchStructuresRequestDTO {
 
     public Set<String> getIds() {
         return ids;
+    }
+
+    public boolean isWithParents() {
+        return withParents;
     }
 }

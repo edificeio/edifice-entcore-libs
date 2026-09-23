@@ -18,9 +18,10 @@ public class VisibleIdentityRequest {
     private VisibleIdFilter visibleIdFilter = VisibleIdFilter.BOTH;
     private String workflowRightFilter;
     private boolean onlyActivatedUsers;
+    private String profileFilter;
 
     public enum VisibleIdFilter {
-        GROUPS,
+        USERS_OF_GROUPS,
         BOTH;
     }
 
@@ -144,6 +145,28 @@ public class VisibleIdentityRequest {
 
     public VisibleIdentityRequest setOnlyActivatedUsers(boolean onlyActivatedUsers) {
         this.onlyActivatedUsers = onlyActivatedUsers;
+        return this;
+    }
+
+    /**
+     * Restrict the response to the identities attached to this profile (Student, Teacher...).
+     * The predicate is not the same for every kind of result :
+     * <ul>
+     *     <li>user : the user carries this profile</li>
+     *     <li>profile group : the group is the group of this profile</li>
+     *     <li>any other group (manual, functional...) : the group has at least one member of this profile,
+     *     and lets its members be seen (users property set to BOTH or OUTGOING)</li>
+     * </ul>
+     * Identities forced into the response through includedVisibleIds are not filtered.
+     * Null or empty means no restriction.
+     * @return
+     */
+    public String getProfileFilter() {
+        return profileFilter;
+    }
+
+    public VisibleIdentityRequest setProfileFilter(String profileFilter) {
+        this.profileFilter = profileFilter;
         return this;
     }
 }

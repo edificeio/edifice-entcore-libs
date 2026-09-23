@@ -743,6 +743,54 @@ public class UserUtils {
 		return promise.future();
 	}
 
+	/**
+	 * List the relatives of the given users, keeping only the users that are visible to the requesting user.
+	 * The visibility rule applies to the users passed in, not to their relatives : a relative is returned as
+	 * soon as one of its children is both in userIds and visible.
+	 * <p>
+	 * Visibility and data are read in two steps : the visible ids first, then the relatives of those ids. The
+	 * intermediate list never exceeds userIds, which the caller has already bounded.
+	 * @param userId id of the user doing the request
+	 * @param userIds ids of the users whose relatives are looked up
+	 * @return JsonArray of JsonObjects : { id: "id of the relative" }
+	 */
+	public static Future<JsonArray> findVisibleRelatives(EventBus eb, String userId, List<String> userIds) {
+		if (userIds == null || userIds.isEmpty()) {
+			return Future.succeededFuture(new JsonArray());
+		}
+		final VisibleIdentityRequest request = new VisibleIdentityRequest()
+				.setUserId(userId)
+				.setPublicDetails(false)
+				.setExpectedVisiblesIds(userIds);
+		return findVisibleIdentities(eb, request).compose(visibles -> {
+			final JsonArray visibleUserIds = new JsonArray();
+			visibles.forEach(o -> {
+				if (!(o instanceof JsonObject)) return;
+				final JsonObject visible = (JsonObject) o;
+				if (Boolean.TRUE.equals(visible.getBoolean("isUser"))) {
+					visibleUserIds.add(visible.getString("id"));
+				}
+			});
+			if (visibleUserIds.isEmpty()) {
+				return Future.succeededFuture(new JsonArray());
+			}
+			final JsonObject m = new JsonObject()
+					.put("action", "list-relatives")
+					.put("userIds", visibleUserIds);
+			final Promise<JsonArray> promise = Promise.promise();
+			eb.request(DIRECTORY, m, (Handler<AsyncResult<Message<JsonObject>>>) res -> {
+				if (res.failed()) {
+					promise.fail(res.cause());
+				} else if (!"ok".equals(res.result().body().getString("status"))) {
+					promise.fail(res.result().body().getString("message", "list.relatives.error"));
+				} else {
+					promise.complete(res.result().body().getJsonArray("result", new JsonArray()));
+				}
+			});
+			return promise.future();
+		});
+	}
+
 	public static void getSession(EventBus eb, final HttpServerRequest request,
 								  final Handler<JsonObject> handler) {
 		getSession(eb, request, false, handler);

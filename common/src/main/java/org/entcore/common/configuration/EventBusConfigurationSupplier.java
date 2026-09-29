@@ -17,21 +17,25 @@ import java.util.Map;
 public class EventBusConfigurationSupplier implements ConfigurationSupplier {
     private static final Logger log = LoggerFactory.getLogger(EventBusConfigurationSupplier.class);
     private final EventBus eb;
-    private final String configurationSupplierAddress;
+    private final EventBusConfigurationSupplierConfiguration conf;
 
-    public EventBusConfigurationSupplier(final Vertx vertx, final String configurationSupplierAddress) {
+    public EventBusConfigurationSupplier(final Vertx vertx,
+                                         final EventBusConfigurationSupplierConfiguration conf) {
         this.eb = vertx.eventBus();
-        this.configurationSupplierAddress = configurationSupplierAddress;
+        this.conf = conf;
     }
 
 
     @Override
     public Future<Map<String, String>> getConfigurationStrings(String[] keys, UserInfos userInfos, HttpServerRequest request) {
         final Promise<Map<String, String>> promise = Promise.promise();
-        this.eb.request(configurationSupplierAddress, new JsonObject()
-                        .put("keys", keys)
-                        .put("userInfos", userInfos == null ? null : Json.encode(userInfos))
-                        .put("request", request == null ? null : Json.encode(request)))
+        this.eb.request(conf.getAddress(), new JsonObject()
+                        .put(conf.getRoutingFieldName(), conf.getRoutingValue())
+                        .put(conf.getBodyFieldName(), new JsonObject()
+                            .put("keys", keys)
+                            .put("userInfos", userInfos == null ? null : Json.encode(userInfos))
+                            .put("request", request == null ? null : Json.encode(request)))
+                )
                 .onSuccess(message -> {
                     final JsonObject body = (JsonObject) message.body();
                     if(body.getBoolean("success", false)) {

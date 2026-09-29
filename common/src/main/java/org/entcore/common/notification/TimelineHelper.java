@@ -19,6 +19,8 @@
 
 package org.entcore.common.notification;
 
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
 import fr.wseduc.webutils.Utils;
 import fr.wseduc.webutils.data.FileResolver;
 import fr.wseduc.webutils.http.Renders;
@@ -35,6 +37,7 @@ import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.file.FileProps;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -42,6 +45,7 @@ import io.vertx.core.logging.LoggerFactory;
 
 
 import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +57,7 @@ import static fr.wseduc.webutils.Utils.handlerToAsyncHandler;
 public class TimelineHelper {
 
 	private static final int MAX_RETRY = 10;
+	private static final JsonFactory JSON_FACTORY = new JsonFactory();
 	private static final String TIMELINE_ADDRESS = "wse.timeline";
 	private final static String messagesDir = FileResolver.absolutePath("i18n/timeline");
 	private final EventBus eb;
@@ -304,16 +309,8 @@ public class TimelineHelper {
 	}
 
 	private void appendTimelineEventsI18n(Map<String, JsonObject> i18ns) {
-		vertx.sharedData().<String, String>getAsyncMap("timelineEventsI18n").onSuccess(eventsI18n-> {
-			for (Map.Entry<String, JsonObject> e: i18ns.entrySet()) {
-				String json = e.getValue().encode();
-				if (StringUtils.isEmpty(json) || "{}".equals(StringUtils.stripSpaces(json))) continue;
-				final String j = json.substring(1, json.length() - 1) + ",";
-				eventsI18n.putIfAbsent(e.getKey(), j)
-					.onSuccess(oldJson -> replaceEventsI18n(eventsI18n, e.getKey(), oldJson, j, 0))
-					.onFailure(ex -> log.error("Error when try put eventsI18n on key " + e.getKey(), ex));
-			}
-		});
+		vertx.sharedData().<String, String>getAsyncMap("timelineEventsI18n")
+				.onSuccess(eventsI18n -> mergeTimelineEventsI18n(eventsI18n, i18ns));
 	}
 
 	/**
@@ -326,33 +323,122 @@ public class TimelineHelper {
 	public static Future<Void> appendTimelineEventsI18n(final Vertx vertx, final Map<String, JsonObject> i18ns) {
 		final Promise<Void> promise = Promise.promise();
 		vertx.sharedData().<String, String>getAsyncMap("timelineEventsI18n").onSuccess(eventsI18n -> {
-			for (Map.Entry<String, JsonObject> e : i18ns.entrySet()) {
-				String json = e.getValue().encode();
-				if (StringUtils.isEmpty(json) || "{}".equals(StringUtils.stripSpaces(json))) continue;
-				final String j = json.substring(1, json.length() - 1) + ",";
-				eventsI18n.putIfAbsent(e.getKey(), j)
-					.onSuccess(oldJson -> replaceEventsI18n(eventsI18n, e.getKey(), oldJson, j, 0))
-					.onFailure(ex -> log.error("Error when try put eventsI18n on key " + e.getKey(), ex));
-			}
+			mergeTimelineEventsI18n(eventsI18n, i18ns);
 			promise.complete();
 		}).onFailure(promise::fail);
 		return promise.future();
 	}
 
-	private static void replaceEventsI18n(AsyncMap<String, String> eventsI18n, String key, String old, String append, int retry) {
-		if (old == null || old.equals(append) || retry > MAX_RETRY) {
-			if (retry > MAX_RETRY) {
-				log.warn("Replace eventi18n not updated after max retries : " + retry);
-			}
+	private static void mergeTimelineEventsI18n(AsyncMap<String, String> eventsI18n, Map<String, JsonObject> i18ns) {
+		for (Map.Entry<String, JsonObject> e : i18ns.entrySet()) {
+			final JsonObject fragment = e.getValue();
+			if (fragment == null || fragment.isEmpty()) continue;
+			mergeEventsI18n(eventsI18n, e.getKey(), fragment, 0);
+		}
+	}
+
+	/**
+	 * Merges a module's i18n fragment into the shared per-locale entry by translation key,
+	 * instead of concatenating raw JSON strings.
+	 */
+	private static void mergeEventsI18n(AsyncMap<String, String> eventsI18n, String key, JsonObject fragment, int retry) {
+		if (retry > MAX_RETRY) {
+			log.warn("Merge eventsI18n not updated after max retries : " + retry);
 			return;
 		}
-		eventsI18n.replaceIfPresent(key, old, (old + append)).onSuccess(updated -> {
-			if (!updated) {
-				eventsI18n.get(key)
-					.onSuccess(old2 -> replaceEventsI18n(eventsI18n, key, old2, append, retry + 1))
-					.onFailure(ex -> log.error("Error when update eventsI18n on key " + key, ex));
+		eventsI18n.get(key).onSuccess(old -> {
+			final JsonObject existing = parseEventsI18n(old);
+			final JsonObject merged = existing.copy().mergeIn(fragment);
+			if (merged.equals(existing)) {
+				return;
 			}
-		});
+			final String encoded = merged.encode();
+			if (old == null) {
+				eventsI18n.putIfAbsent(key, encoded)
+						.onSuccess(previous -> {
+							if (previous != null) {
+								mergeEventsI18n(eventsI18n, key, fragment, retry + 1);
+							}
+						})
+						.onFailure(ex -> log.error("Error when put eventsI18n on key " + key, ex));
+			} else {
+				eventsI18n.replaceIfPresent(key, old, encoded)
+						.onSuccess(updated -> {
+							if (!updated) {
+								mergeEventsI18n(eventsI18n, key, fragment, retry + 1);
+							}
+						})
+						.onFailure(ex -> log.error("Error when update eventsI18n on key " + key, ex));
+			}
+		}).onFailure(ex -> log.error("Error when read eventsI18n on key " + key, ex));
+	}
+
+
+	/**
+	 * Parses the shared map's stored value for one locale. Understands the current format (a
+	 * valid standalone JSON object), the legacy format written before the merge logic above
+	 * shipped (a headless fragment with a trailing comma, missing braces), and the mix of both
+	 * that a module still running the legacy code produces by appending its fragment to a
+	 * current value ({@code {"a":"A"}"k":"K",}). The mixed value is salvaged rather than
+	 * discarded, so the next merge rewrites it whole instead of keeping a single module's keys.
+	 */
+	public static JsonObject parseEventsI18n(String raw) {
+		if (StringUtils.isEmpty(raw)) {
+			return new JsonObject();
+		}
+		try {
+			return new JsonObject(raw);
+		} catch (DecodeException e) {
+			// not the current format, see below
+		}
+		if (raw.startsWith("{")) {
+			return parseMixedEventsI18n(raw);
+		}
+		try {
+			return parseLegacyEventsI18n(raw);
+		} catch (DecodeException e) {
+			log.error("Bad legacy eventsI18n value, discarding: " + raw, e);
+			return new JsonObject();
+		}
+	}
+
+	/**
+	 * A current-format object followed by legacy fragments. The fragments were appended after
+	 * the object, so their keys win, as they did with the legacy concatenation. The object's end
+	 * is found with a streaming parser because values hold mustache braces ({@code {{username}}}).
+	 */
+	private static JsonObject parseMixedEventsI18n(String raw) {
+		final JsonObject head;
+		final String tail;
+		try (JsonParser parser = JSON_FACTORY.createParser(raw)) {
+			parser.nextToken();
+			parser.skipChildren();
+			final int end = (int) parser.currentLocation().getCharOffset();
+			head = new JsonObject(raw.substring(0, end));
+			tail = raw.substring(end).trim();
+		} catch (IOException | DecodeException e) {
+			log.error("Bad eventsI18n value, discarding: " + raw, e);
+			return new JsonObject();
+		}
+		if (tail.isEmpty()) {
+			return head;
+		}
+		try {
+			final JsonObject legacy = parseLegacyEventsI18n(tail);
+			// only a module still running a legacy common appends after a current-format value;
+			// the keys are the only trace of which one it is
+			log.warn("eventsI18n value appended by a module still on a legacy common version, appended keys: "
+					+ legacy.fieldNames());
+			return head.mergeIn(legacy);
+		} catch (DecodeException e) {
+			log.warn("Unreadable legacy tail in eventsI18n value, keeping its leading object only: " + tail, e);
+			return head;
+		}
+	}
+
+	private static JsonObject parseLegacyEventsI18n(String fragment) {
+		final String body = fragment.endsWith(",") ? fragment.substring(0, fragment.length() - 1) : fragment;
+		return new JsonObject("{" + body + "}");
 	}
 
 }

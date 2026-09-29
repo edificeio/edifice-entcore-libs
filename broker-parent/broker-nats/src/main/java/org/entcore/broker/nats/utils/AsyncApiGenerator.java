@@ -250,7 +250,6 @@ public class AsyncApiGenerator {
       }
     }
     schema.remove("$id");
-    schema.remove("title");
   }
 
   private Map<String, Object> ref(String refPath) {

@@ -11,6 +11,7 @@ public class VisibleIdentityRequest {
     private String userId;
     private boolean itSelf;
     private boolean includeHiddenCommunity;
+    private boolean includeEmptyGroups;
     private List<String> expectedVisiblesIds;
     private List<String> includedVisibleIds;
     private boolean publicDetails;
@@ -22,7 +23,9 @@ public class VisibleIdentityRequest {
 
     public enum VisibleIdFilter {
         USERS_OF_GROUPS,
-        BOTH;
+        BOTH,
+        /** Only the visible groups, no user */
+        GROUPS;
     }
 
     public String getUserId() {
@@ -62,6 +65,19 @@ public class VisibleIdentityRequest {
 
     public VisibleIdentityRequest setIncludeHiddenCommunity(boolean includeHiddenCommunity) {
         this.includeHiddenCommunity = includeHiddenCommunity;
+        return this;
+    }
+
+    /**
+     * Include the groups without any member, which are left out by default
+     * @return
+     */
+    public boolean isIncludeEmptyGroups() {
+        return includeEmptyGroups;
+    }
+
+    public VisibleIdentityRequest setIncludeEmptyGroups(boolean includeEmptyGroups) {
+        this.includeEmptyGroups = includeEmptyGroups;
         return this;
     }
 

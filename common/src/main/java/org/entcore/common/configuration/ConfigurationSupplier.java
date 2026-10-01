@@ -11,4 +11,5 @@ public interface ConfigurationSupplier {
         return getConfigurationStrings(new String[]{key}, userInfos, request).map(configMap -> configMap.get(key));
     }
     Future<Map<String, String>> getConfigurationStrings(final String[] keys, final UserInfos userInfos, final HttpServerRequest request);
+    default Future<Void> clearCache(final String... keys) {return Future.succeededFuture();}
 }

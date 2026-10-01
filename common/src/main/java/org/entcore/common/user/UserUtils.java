@@ -87,7 +87,6 @@ public class UserUtils {
 
 	}
 
-
 	private static void findUsers(final EventBus eb, HttpServerRequest request,
 								  final JsonObject query, final Handler<JsonArray> handler) {
 		getSession(eb, request, new Handler<JsonObject>() {
@@ -143,52 +142,88 @@ public class UserUtils {
         });
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleUsers(final EventBus eb, HttpServerRequest request, boolean profile,
 										final Handler<JsonArray> handler) {
 		findVisibleUsers(eb, request, profile, null, null, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleUsers(final EventBus eb, HttpServerRequest request, boolean profile,
 			String customReturn, JsonObject additionnalParams, final Handler<JsonArray> handler) {
 		JsonObject m = queryVisibleUsers(customReturn, additionnalParams, false, profile);
 		findUsers(eb, request, m, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleUsers(final EventBus eb, HttpServerRequest request, boolean itSelf, boolean profile,
 			String preFilter, String customReturn, JsonObject additionnalParams, final Handler<JsonArray> handler) {
 		JsonObject m = queryVisibleUsers(preFilter, customReturn, additionnalParams, itSelf, profile);
 		findUsers(eb, request, m, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleUsers(final EventBus eb, HttpServerRequest request, boolean itSelf, boolean profile,
 			String customReturn, JsonObject additionnalParams, final Handler<JsonArray> handler) {
 		JsonObject m = queryVisibleUsers(customReturn, additionnalParams, itSelf, profile);
 		findUsers(eb, request, m, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleUsers(final EventBus eb, String userId, boolean profile,
 				final Handler<JsonArray> handler) {
 		findVisibleUsers(eb, userId, profile, null, null, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleUsers(final EventBus eb, String userId, boolean profile,
 			String customReturn, JsonObject additionnalParams, final Handler<JsonArray> handler) {
 		JsonObject m = queryVisibleUsers(customReturn, additionnalParams, false, profile);
 		findUsers(eb, userId, m, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleUsers(final EventBus eb, String userId, boolean profile, String preFilter,
 			String customReturn, JsonObject additionnalParams, final Handler<JsonArray> handler) {
 		JsonObject m = queryVisibleUsers(preFilter, customReturn, additionnalParams, false, profile);
 		findUsers(eb, userId, m, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleUsers(final EventBus eb, String userId, boolean itSelf, boolean profile,
 			String customReturn, JsonObject additionnalParams, final Handler<JsonArray> handler) {
 		JsonObject m = queryVisibleUsers(customReturn, additionnalParams, itSelf, profile);
 		findUsers(eb, userId, m, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	private static JsonObject queryVisibleUsers(String customReturn, JsonObject additionnalParams, boolean itSelf,
 			boolean profile) {
 		return queryVisibleUsers(null, customReturn, additionnalParams, itSelf, profile);
@@ -214,6 +249,10 @@ public class UserUtils {
 	}
 
 	/* On error, handler will receive an empty JsonArray (legacy behavior) */
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibles(EventBus eb, String userId, String customReturn,
 		JsonObject additionnalParams, boolean itSelf, boolean myGroup, boolean profile,
 		final Handler<JsonArray> handler) {
@@ -221,6 +260,10 @@ public class UserUtils {
 	}
 
 	/* On error, handler will receive an empty JsonArray (legacy behavior) */
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibles(EventBus eb, String userId, String customReturn,
 		JsonObject additionnalParams, boolean itSelf, boolean myGroup, boolean profile,
 		final String acceptLanguage, final Handler<JsonArray> handler) {
@@ -228,6 +271,10 @@ public class UserUtils {
 	}
 
 	/* On error, handler will receive an empty JsonArray (legacy behavior) */
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibles(EventBus eb, String userId, String customReturn,
 			JsonObject additionnalParams, boolean itSelf, boolean myGroup, boolean profile,
 			final String acceptLanguage, String preFilter, final Handler<JsonArray> handler) {
@@ -236,6 +283,10 @@ public class UserUtils {
 		.onFailure( throwable -> handler.handle(new fr.wseduc.webutils.collections.JsonArray()) );
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static Future<JsonArray> findVisibles(EventBus eb, String userId, String customReturn,
 			JsonObject additionnalParams, boolean itSelf, boolean myGroup, boolean profile,
 			final String acceptLanguage, String preFilter, String userProfile, boolean reverseUnion) {
@@ -611,11 +662,19 @@ public class UserUtils {
 		findUsers(eb, request, m, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleProfilsGroups(final EventBus eb, HttpServerRequest request,
 												final Handler<JsonArray> handler) {
 		findUsers(eb, request, QUERY_VISIBLE_PROFILS_GROUPS, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleProfilsGroups(final EventBus eb, HttpServerRequest request,
 			String customReturn, JsonObject additionnalParams, final Handler<JsonArray> handler) {
 		JsonObject m = QUERY_VISIBLE_PROFILS_GROUPS.copy()
@@ -624,6 +683,10 @@ public class UserUtils {
 		findUsers(eb, request, m, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleProfilsGroups(final EventBus eb, String userId,
 			String customReturn, JsonObject additionnalParams, final Handler<JsonArray> handler) {
 		JsonObject m = QUERY_VISIBLE_PROFILS_GROUPS.copy()
@@ -632,6 +695,10 @@ public class UserUtils {
 		findUsers(eb, userId, m, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleProfilsGroups(final EventBus eb, String userId, String preFilter,
 			String customReturn, JsonObject additionnalParams, final Handler<JsonArray> handler) {
 		JsonObject m = QUERY_VISIBLE_PROFILS_GROUPS.copy()
@@ -643,11 +710,19 @@ public class UserUtils {
 		findUsers(eb, userId, m, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleProfilsGroups(final EventBus eb, String userId,
 												final Handler<JsonArray> handler) {
 		findUsers(eb, userId, QUERY_VISIBLE_PROFILS_GROUPS, handler);
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleProfilsGroups(final EventBus eb, String userId, boolean allowEmptyGroups,
 												final Handler<JsonArray> handler) {
 		if (allowEmptyGroups) {
@@ -679,6 +754,10 @@ public class UserUtils {
 		});
 	}
 
+	/**
+	 * This method will be removed in the future, cipher injection is no longer authorized
+	 */
+	@Deprecated
 	public static void findVisibleManualGroups(final EventBus eb, HttpServerRequest request,
 			String customReturn, JsonObject additionnalParams, final Handler<JsonArray> handler) {
 		JsonObject m = QUERY_VISIBLE_MANUAL_GROUPS.copy()

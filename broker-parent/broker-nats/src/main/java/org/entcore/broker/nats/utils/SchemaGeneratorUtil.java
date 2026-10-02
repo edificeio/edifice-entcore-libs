@@ -11,8 +11,12 @@ import java.util.stream.Collectors;
 
 public class SchemaGeneratorUtil {
 
-  public SchemaGeneratorUtil() {
+  private final Map<String, Map<String, Object>> alreadyGeneratedSchema;
+  private final Set<String> typesCurrentlyGenerating;
 
+  public SchemaGeneratorUtil() {
+    this.alreadyGeneratedSchema = new HashMap<>();
+    this.typesCurrentlyGenerating = new HashSet<>();
   }
 
 
@@ -71,8 +75,26 @@ public class SchemaGeneratorUtil {
    * @return A JSON schema as a string.
    */
   public Map<String, Object> generateJsonSchemaFromTypeMirror(TypeMirror typeMirror) {
-    System.out.println("Generating schema for " + typeMirror.toString() + " : " + typeMirror.getKind());
-    Map<String, Object> schema = new LinkedHashMap<>(); // Use LinkedHashMap here just to keep the order of the fields
+    final String typeFullName = typeMirror.toString();
+    if(alreadyGeneratedSchema.containsKey(typeFullName)) {
+      if(typesCurrentlyGenerating.contains(typeFullName)) {
+        return of("$ref", typeFullName);
+      }
+      return alreadyGeneratedSchema.get(typeFullName);
+    }
+    System.out.println("Generating schema for " + typeFullName + " : " + typeMirror.getKind());
+    final Map<String, Object> schema = new LinkedHashMap<>(); // Use LinkedHashMap here just to keep the order of the fields
+    alreadyGeneratedSchema.put(typeFullName, schema);
+    typesCurrentlyGenerating.add(typeFullName);
+    try {
+      generateJsonSchemaFromTypeMirror(typeMirror, schema);
+    } finally {
+      typesCurrentlyGenerating.remove(typeFullName);
+    }
+    return schema;
+  }
+
+  private void generateJsonSchemaFromTypeMirror(TypeMirror typeMirror, Map<String, Object> schema) {
     final String typeMirrorAsString = typeMirror.toString();
     switch (typeMirror.getKind()) {
       case BOOLEAN:
@@ -97,7 +119,7 @@ public class SchemaGeneratorUtil {
         schema.put("items", generateJsonSchemaFromTypeMirror(arrayType.getComponentType()));
         break;
       case DECLARED:
-        if ("java.lang.String".equals(typeMirrorAsString)) {
+        if ("java.lang.String".equals(typeMirrorAsString) || isDateLike(typeMirrorAsString)) {
           schema.put("type", "string");
         } else if(isEnum(typeMirror)){
           specifyEnum(typeMirror, schema);
@@ -144,7 +166,6 @@ public class SchemaGeneratorUtil {
         schema.put("type", "unknown");
         break;
     }
-    return schema;
   }
 
   private void specifyEnum(TypeMirror typeMirror, Map<String, Object> schema) {
@@ -195,6 +216,12 @@ public class SchemaGeneratorUtil {
   private boolean isNumberLike(String typeMirrorAsString) {
     return "java.lang.Float".equals(typeMirrorAsString) ||
       "java.lang.Double".equals(typeMirrorAsString);
+  }
+  private boolean isDateLike(String typeMirrorAsString) {
+    return "java.time.LocalDate".equals(typeMirrorAsString) ||
+      "java.time.LocalDateTime".equals(typeMirrorAsString) ||
+      "java.util.Date".equals(typeMirrorAsString) ||
+      "java.time.Instant".equals(typeMirrorAsString);
   }
   private boolean isEnum(TypeMirror typeMirror) {
     final Element element = ((DeclaredType) typeMirror).asElement();

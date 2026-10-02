@@ -36,6 +36,9 @@ import org.entcore.common.cache.CacheService;
 import org.entcore.common.neo4j.Neo4j;
 import org.entcore.common.redis.Redis;
 import org.entcore.common.session.SessionRecreationRequest;
+import org.entcore.common.tenant.StaticTenantSupplier;
+import org.entcore.common.tenant.TenantSupplier;
+import org.entcore.common.tenant.TenantSupplierFactory;
 import org.entcore.common.utils.StringUtils;
 import org.vertx.java.busmods.BusModBase;
 
@@ -61,6 +64,7 @@ public class AuthManager extends BusModBase implements Handler<Message<JsonObjec
 	protected CacheService OAuthCacheService;
 	protected Boolean cluster;
 	protected boolean xsrfOnAuth;
+	protected TenantSupplier tenantSupplier = new StaticTenantSupplier();
 
 	public void start(Promise<Void> startPromise) {
 		super.start();
@@ -115,10 +119,12 @@ public class AuthManager extends BusModBase implements Handler<Message<JsonObjec
 		}
 
 		sessionStore = SessionStoreFactory.createSessionStore(vertx, cluster, config);
-		final String address = getOptionalStringConfig("address", "wse.session");
-		eb.localConsumer(address, this);
-
-		return Future.succeededFuture();
+		return TenantSupplierFactory.createTenantSupplier(vertx, config).map(supplier -> {
+			tenantSupplier = supplier;
+			final String address = getOptionalStringConfig("address", "wse.session");
+			eb.localConsumer(address, this);
+			return null;
+		});
 	}
 
 	@Override
@@ -1161,8 +1167,18 @@ public class AuthManager extends BusModBase implements Handler<Message<JsonObjec
 					//return unique options
 					Set<String> uniquOption = new HashSet<>(j.getJsonArray("optionEnabled", new JsonArray()).getList());
 					j.put("optionEnabled", new JsonArray(new ArrayList(uniquOption)));
-					//
-					handler.handle(j);
+					// No request here to deduce the tenant from the hostname: only the structures are used
+					tenantSupplier.getTenantId(userId, structureIds, null).onComplete(tenantResult -> {
+						if (tenantResult.succeeded()) {
+							if (!StringUtils.isEmpty(tenantResult.result())) {
+								j.put("tenantId", tenantResult.result());
+							}
+						} else {
+							// The session is still created: without tenant id, consumers fall back on the request's hostname
+							log.error("Failed to get the tenant of user " + userId, tenantResult.cause());
+						}
+						handler.handle(j);
+					});
 				} else {
 					handler.handle(null);
 				}

@@ -28,7 +28,7 @@ import java.util.Map;
 
 public class UserInfos {
 
-	public static class Action {
+    public static class Action {
 		private String name;
 		private String displayName;
 		private String type;
@@ -298,6 +298,7 @@ public class UserInfos {
 	private String email;
 	private String mobile;
 	private Boolean hasTotp;
+	private String tenantId;
 
 	public Map<String, Child> getChildren() { return children; }
 
@@ -572,6 +573,14 @@ public class UserInfos {
 	@JsonAnyGetter
 	public Map<String, Object> getOtherProperties() {
 		return otherProperties;
+	}
+
+	public String getTenantId() {
+		return tenantId;
+	}
+
+	public void setTenantId(String tenantId) {
+		this.tenantId = tenantId;
 	}
 
 	public static class Subject {

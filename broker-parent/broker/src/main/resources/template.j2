@@ -36,6 +36,9 @@
             "io.nats.client.pinginterval": "{{ brokerNatsPingInterval | default('PT15s')}}",
             "io.nats.client.url": "{{ brokerNatsUrl }}",
             "io.nats.client.reconnect.max": -1
+            {% if brokerNatsExtraParams is defined %},
+            {{brokerNatsExtraParams}}
+            {% endif %}
           }
         }
         {% if brokerIaEnabled is defined and brokerIaEnabled %}

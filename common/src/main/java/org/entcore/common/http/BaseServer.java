@@ -50,6 +50,7 @@ import org.entcore.common.elasticsearch.ElasticSearch;
 import org.entcore.common.email.EmailFactory;
 import org.entcore.common.events.EventStoreFactory;
 import org.entcore.common.explorer.ExplorerPluginFactory;
+import org.entcore.common.i18n.I18nOverridesLoader;
 import org.entcore.common.http.filter.*;
 import org.entcore.common.http.i18n.I18nHandler;
 import org.entcore.common.http.response.OverrideThemeHookRender;
@@ -93,6 +94,7 @@ public abstract class BaseServer extends Server {
 	private IAccessLogger accessLogger;
 	private ApplicationStatusBrokerPublisher statusPublisher;
 	private String nodeName;
+	private I18nOverridesLoader i18nOverridesLoader;
 
 	public static String getModuleName() {
 		return moduleName;
@@ -224,14 +226,41 @@ public abstract class BaseServer extends Server {
                                 log.info("Received "+ONDEPLOY_I18N+" update i18n override");
                                 this.loadI18nAssetsFiles(skins);
                             });
+                            startI18nOverrides();
                             Future.all(futures).onComplete(res -> p.tryComplete());
                         });
                 });
         });
   }
 
+	/**
+	 * Loads the translation overrides of the tenants (see {@link I18nOverridesLoader}), reloaded when
+	 * they change. Without them, or until they could be loaded, only the i18n files are used.
+	 */
+	private void startI18nOverrides() {
+		I18nOverridesLoader.start(vertx, config, I18n.getInstance(), getI18nOverridesApplications())
+				.onSuccess(loader -> this.i18nOverridesLoader = loader)
+				.onFailure(err -> log.error("Translation overrides are disabled: " + err.getMessage(), err));
+	}
+
+	/**
+	 * Applications whose translation overrides ("&lt;application&gt;.i18n.overrides" properties of the
+	 * tenants) apply to the translations of this module: its "app-name", else its name, lower-cased.
+	 */
+	protected Set<String> getI18nOverridesApplications() {
+		return Collections.singleton(config.getString("app-name", moduleName).toLowerCase());
+	}
+
+	/** @return null when the platform has no translation overrides or until they are started */
+	protected I18nOverridesLoader getI18nOverridesLoader() {
+		return i18nOverridesLoader;
+	}
+
 	@Override
 	public void stop(final Promise<Void> promise) throws Exception {
+		if (i18nOverridesLoader != null) {
+			i18nOverridesLoader.stop();
+		}
 		super.stop(promise);
 		// notify stopped on broker
 		statusPublisher.notifyStopped(ApplicationStatusDTO.withBasicInfo(moduleName, nodeName));

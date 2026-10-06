@@ -3,6 +3,7 @@ package org.entcore.broker.api.dto.directory.structure;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.entcore.broker.api.dto.directory.clazz.ClassDTOClassAdmin;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 
 /*
@@ -13,6 +14,7 @@ import java.util.List;
     * aren't return in the directory.class.admin.by.id subject 
     * and to avoid confusion between the different subjects responses
 */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class SchoolDTOClassAdmin {
     private final List<ClassDTOClassAdmin> classes;
     private final String name;

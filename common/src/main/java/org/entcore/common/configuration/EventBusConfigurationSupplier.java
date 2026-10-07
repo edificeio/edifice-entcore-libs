@@ -50,35 +50,36 @@ public class EventBusConfigurationSupplier implements ConfigurationSupplier {
                 ebRequest.put("tenantId", res.result());
             } else {
                 ebRequest.put("domain", getHostnameFromRequest(request).orElse(""));
-                this.eb.request(conf.getAddress(), new JsonObject()
-                        .put(conf.getRoutingFieldName(), conf.getRoutingValue())
-                        .put(conf.getBodyFieldName(), ebRequest.encode()))
-                .onSuccess(message -> {
-                    final JsonObject body = new JsonObject((String) message.body());
-                    if (body.getBoolean("success", false)) {
-                        final Map<String, String> configMap = new HashMap<>();
-                        final JsonArray receivedProperties = body.getJsonArray("properties");
-                        for (Object rawProp : receivedProperties) {
-                            final JsonObject val = (JsonObject) rawProp;
-                            final String key = val.getString("key");
-                            final String value;
-                            final long ttl;
-                            value = val.getString("value");
-                            ttl = val.getLong("ttl", -1L);
-                            configMap.put(key, value);
-                            propertiesCacheByTenant.put(key, value);
-                        }
-                        promise.complete(configMap);
-                    } else {
-                        log.error("Failed to get configuration of keys " + Arrays.toString(keys) + ":" + body);
-                        promise.fail("Failed to get configuration");
-                    }
-                })
-                .onFailure(err -> {
-                    log.error("Failed to get configuration of keys " + Arrays.toString(keys), err);
-                    promise.fail(err);
-                });
             }
+            this.eb.request(conf.getAddress(), new JsonObject()
+                    .put(conf.getRoutingFieldName(), conf.getRoutingValue())
+                    .put(conf.getBodyFieldName(), ebRequest.encode()))
+            .onSuccess(message -> {
+                final JsonObject body = new JsonObject((String) message.body());
+                if (body.getBoolean("success", false)) {
+                    final Map<String, String> configMap = new HashMap<>();
+                    final JsonArray receivedProperties = body.getJsonArray("properties");
+                    for (Object rawProp : receivedProperties) {
+                        final JsonObject val = (JsonObject) rawProp;
+                        final String key = val.getString("key");
+                        final String value;
+                        final long ttl;
+                        value = val.getString("value");
+                        ttl = val.getLong("ttl", -1L);
+                        configMap.put(key, value);
+                        propertiesCacheByTenant.put(key, value);
+                    }
+                    promise.complete(configMap);
+                } else {
+                    log.error("Failed to get configuration of keys " + Arrays.toString(keys) + ":" + body);
+                    promise.fail("Failed to get configuration");
+                }
+            })
+            .onFailure(err -> {
+                log.error("Failed to get configuration of keys " + Arrays.toString(keys), err);
+                promise.fail(err);
+            });
+
         });
         return promise.future();
     }

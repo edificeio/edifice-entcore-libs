@@ -148,8 +148,9 @@ public class StorageFactory {
 			int threshold = s3.getInteger("threshold", 100);
 			long openDelay = s3.getLong("openDelay", 10000l);
 			int poolSize = s3.getInteger("poolSize", 16);
+            boolean flat = s3.getBoolean("flat", false);
 			try {
-				storage = new S3Storage(vertx, new URI(uri), accessKey, secretKey, region, bucket, ssec, keepAlive, timeout, threshold, openDelay, poolSize);
+				storage = new S3Storage(vertx, new URI(uri), accessKey, secretKey, region, bucket, ssec, keepAlive, timeout, threshold, openDelay, poolSize, flat);
 			} catch (URISyntaxException e) {
 				e.printStackTrace();
 			}

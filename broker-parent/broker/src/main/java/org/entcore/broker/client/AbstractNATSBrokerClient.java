@@ -167,23 +167,39 @@ public abstract class AbstractNATSBrokerClient implements BrokerClient {
         final EventBus eb = this.vertx.eventBus();
         eb.<String>consumer("broker.remove", m -> {
             final String subjectToRemove = m.body();
-            final NatsClient natsClient = getNatsClientForSubject(subjectToRemove);
-            natsClient.unsubscribe(subjectToRemove)
-                .onSuccess(e -> m.reply(new JsonObject().put("ok", true)))
-                .onFailure(th -> {
-                    log.warn("Error while unsubscribing to subject " + subjectToRemove);
-                    m.reply(new JsonObject().put("ok", false).put("error", th.getMessage()));
-                });
+            final boolean subscriptionExisted = subscriptions.remove(subjectToRemove);
+            if(subscriptionExisted) {
+                log.info("Removing subscription " + subjectToRemove);
+                final NatsClient natsClient = getNatsClientForSubject(subjectToRemove);
+                natsClient.unsubscribe(subjectToRemove)
+                    .onSuccess(e -> m.reply(new JsonObject().put("ok", true)))
+                    .onFailure(th -> {
+                        log.warn("Error while unsubscribing to subject " + subjectToRemove);
+                        m.reply(new JsonObject().put("ok", false).put("error", th.getMessage()));
+                    });
+            } else {
+                log.debug("Subscription " + subjectToRemove + " did not exist");
+            }
         });
         eb.<String>consumer("broker.add", m -> {
             final String subjectToListen = m.body();
-            final NatsClient natsClient = getNatsClientForSubject(subjectToListen);
-            natsClient.subscribe(subjectToListen, this.getQueueName(), this::proxifyNatsMessage)
-                .onSuccess(e -> m.reply(new JsonObject().put("ok", true)))
+            if(subscriptions.contains(subjectToListen)) {
+                log.debug("Already listening to subject '" + subjectToListen + "'");
+                m.reply(new JsonObject().put("ok", true));
+            } else {
+                log.info("Adding subject '" + subjectToListen + "'");
+                subscriptions.add(subjectToListen);
+                final NatsClient natsClient = getNatsClientForSubject(subjectToListen);
+                natsClient.subscribe(subjectToListen, this.getQueueName(), this::proxifyNatsMessage)
+                .onSuccess(e ->  {
+                    log.info("Now listening for subject '" + subjectToListen + "'");
+                    m.reply(new JsonObject().put("ok", true));
+                })
                 .onFailure(th -> {
                     log.warn("Error while subscribing to subject " + subjectToListen);
                     m.reply(new JsonObject().put("ok", false).put("error", th.getMessage()));
                 });
+            }
         });
     }
 

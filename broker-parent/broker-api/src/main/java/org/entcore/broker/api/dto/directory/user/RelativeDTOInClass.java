@@ -2,6 +2,7 @@ package org.entcore.broker.api.dto.directory.user;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 
 /*
@@ -12,6 +13,7 @@ import java.util.List;
     * aren't return in the directory.class.by.id.with.params subject 
     * and to avoid confusion between the different subjects responses
 */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class RelativeDTOInClass {
     private final String relatedName;
     private final List<String> relatedType;

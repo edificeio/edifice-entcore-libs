@@ -2,6 +2,7 @@ package org.entcore.broker.api.dto.directory.user;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 /*
     * This DTO is used to represent user information for /directory/class-admin/:userId endpoint
@@ -11,6 +12,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
     * aren't return in the directory.class.admin.by.id subject 
     * and to avoid confusion between the different subjects responses
 */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class HobbyDTOClassAdmin {
     private final String visibility;
     private final String category;

@@ -2,6 +2,7 @@ package org.entcore.broker.api.dto.directory.structure;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 /*
     * This DTO is used to represent school information
@@ -11,6 +12,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
     * aren't return in the directory.structure.users.by.id subject 
     * and to avoid confusion between the different subjects responses
 */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class SchoolDTOStructure {
     private final String name;
     private final String externalId;

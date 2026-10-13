@@ -20,6 +20,7 @@
 package org.entcore.common.bus;
 
 import fr.wseduc.mongodb.MongoDb;
+import fr.wseduc.webutils.DefaultAsyncResult;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.logging.LoggerFactory;
 import org.entcore.common.storage.Storage;
@@ -76,6 +77,21 @@ public class WorkspaceHelper {
 				.put("thumbs", thumbs);
 		eb.request(WORKSPACE_ADDRESS, m, handler);
 	}
+
+    public void addDocument(Buffer content, String contentType, UserInfos userInfos, String name, String application,
+                            boolean protectedContent, JsonArray thumbs, Handler<AsyncResult<Message<JsonObject>>> handler) {
+        this.storage.writeBuffer(content, contentType, name, uploadRes -> {
+            if(uploadRes.getString("status", "").equals("ok")) {
+                JsonObject metadata = new JsonObject();
+                metadata.put("name", name).put("fileName", name).put("content-type", contentType).put("size", content.length());
+                JsonObject uploaded = new JsonObject();
+                uploaded.put("_id", uploadRes.getString("_id", "")).put("metadata", metadata);
+                this.addDocument(uploaded, userInfos, name, application, protectedContent, thumbs, handler);
+            } else {
+                handleAsyncError(uploadRes.getString("message", "Unknown error while uploading file"), handler);
+            }
+        });
+    }
 
 	public void updateDocument(String id, JsonObject uploaded, String name, JsonArray thumbs,
 			Handler<AsyncResult<Message<JsonObject>>> handler) {

@@ -3,7 +3,10 @@ package org.entcore.broker.client;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import fr.wseduc.webutils.http.TraceIdContextHandler;
 import io.nats.client.Message;
+import io.nats.client.impl.Headers;
+import io.nats.client.impl.NatsMessage;
 import io.nats.vertx.NatsClient;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -28,6 +31,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 
+import static fr.wseduc.webutils.Controller.TRACE_ID;
 import static io.vertx.core.Future.failedFuture;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
@@ -476,20 +480,21 @@ public abstract class AbstractNATSBrokerClient implements BrokerClient {
         
         return Future.succeededFuture();
     }
-    
+
     /**
      * Creates a proxy message handler that bridges NATS to EventBus.
-     * 
+     *
      * @return The message handler
      */
     private Handler<Message> getProxyMessageHandler() {
-        return msg -> proxifyNatsMessage(msg);
+        return this::proxifyNatsMessage;
     }
 
     private void proxifyNatsMessage(Message msg) {
         final Promise<Object> promise = Promise.promise();
         final NatsClient natsClient = getNatsClientForSubject(msg.getSubject());
         try {
+            initializeTraceIdFromNATSMessage(msg);
             this.vertx.eventBus().request(msg.getSubject(), getDataFromMessage(msg))
                     .onSuccess(response -> {
                         try {
@@ -510,7 +515,7 @@ public abstract class AbstractNATSBrokerClient implements BrokerClient {
         promise.future().onSuccess(response -> {
             try {
                 final byte[] payload = ((String) response).getBytes(charset);
-                natsClient.publish(msg.getReplyTo(), payload)
+                natsClient.publish(buildMessage(msg.getReplyTo(), payload))
                     .onFailure(e -> log.error("Error while publishing response to NATS", e));
             } catch (Exception e) {
                 log.error("Error while publishing response to NATS", e);
@@ -520,7 +525,41 @@ public abstract class AbstractNATSBrokerClient implements BrokerClient {
             sendError(msg, th, natsClient);
         });
     }
-    
+
+    private Message buildMessage(String subject, byte[] payload) {
+        return new NatsMessage.Builder()
+                .subject(subject)
+                .data(payload)
+                .headers(new Headers().add(TRACE_ID, TraceIdContextHandler.getTraceId()))
+                .build();
+    }
+
+    /**
+     * Get trace id from nats message and set it to vertx context. If none was provided in NATS then choose a random
+     * traceId anyway.
+     * @param msg message coming from NATS
+     * @return The traceId we found (or created) and put in vertx's context
+     */
+    private String initializeTraceIdFromNATSMessage(Message msg) {
+        final Optional<String> maybeTraceId;
+        final Headers headers = msg.getHeaders();
+        if(headers == null) {
+            maybeTraceId = Optional.empty();
+        } else {
+            maybeTraceId = Optional.ofNullable(headers.getFirst(TRACE_ID));
+        }
+        if(maybeTraceId.isPresent()) {
+            TraceIdContextHandler.setTraceId(maybeTraceId.get());
+        } else {
+            try {
+                return TraceIdContextHandler.getTraceId();
+            } catch (Exception e) {
+                log.warn("Error while fetching traceId from nats message", e);
+                return null;
+            }
+        }
+    }
+
     /**
      * Extracts data from a NATS message.
      * 
@@ -549,11 +588,11 @@ public abstract class AbstractNATSBrokerClient implements BrokerClient {
         final String message = e.getMessage() == null ? String.valueOf(e) : e.getMessage();
         final NATSResponseDTO natsResponseDTO = new NATSResponseDTO(null, message, false, null);
         try {
-            natsClient.publish(msg.getReplyTo(), mapper.writeValueAsBytes(natsResponseDTO))
+            natsClient.publish(buildMessage(msg.getReplyTo(), mapper.writeValueAsBytes(natsResponseDTO)))
                 .onFailure(ex -> log.error("Cannot send error response to NATS", ex));
         } catch (JsonProcessingException ex) {
             log.error("Cannot serialize error", ex);
-            natsClient.publish(msg.getReplyTo(), message.getBytes(StandardCharsets.UTF_8))
+            natsClient.publish(buildMessage(msg.getReplyTo(), message.getBytes(StandardCharsets.UTF_8)))
                 .onFailure(err -> log.error("Cannot send error message to NATS", err));
         }
     }
@@ -600,7 +639,7 @@ public abstract class AbstractNATSBrokerClient implements BrokerClient {
 
         try {
             final byte[] payload = message.getBytes(charset);
-            return client.publish(subject, payload)
+            return client.publish(buildMessage(subject, payload))
                     .onFailure(e -> log.error("Error while sending message to NATS", e));
         } catch (Exception e) {
             log.error("An error occurred while serializing message to JSON : " + message, e);
@@ -647,7 +686,7 @@ public abstract class AbstractNATSBrokerClient implements BrokerClient {
     private Future<String> request(NatsClient client, String subject, String payload, long timeout) throws Exception {
         Promise<String> future = Promise.promise();
         final byte[] payloadBytes = payload != null? payload.getBytes(charset) : new byte[0];
-        client.requestWithTimeout(subject, null, payloadBytes, Duration.ofMillis(timeout))
+        client.requestWithTimeout(subject, new Headers().add(TRACE_ID, TraceIdContextHandler.getTraceId()), payloadBytes, Duration.ofMillis(timeout))
             .onSuccess(e -> {
                 log.debug("Message sent to subject: " + subject);
                 try {
@@ -685,7 +724,7 @@ public abstract class AbstractNATSBrokerClient implements BrokerClient {
                     futureResponse.onSuccess(response -> {
                         try {
                             final byte[] payload = mapper.writeValueAsString(response).getBytes(charset);
-                            client.publish(replyTo, payload)
+                            client.publish(buildMessage(replyTo, payload))
                                 .onFailure(ex -> log.error("Error publishing response to NATS", ex));
                         } catch (Exception e) {
                             log.error("Error serializing response to JSON", e);

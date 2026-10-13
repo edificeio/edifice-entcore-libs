@@ -72,19 +72,25 @@ public class S3Client {
 	private final String secretKey;
 	private final String region;
 	private final String ssec;
+    private final boolean flat;
 
 	private static final long S3_DOWNLOAD_TIMEOUT_IN_MILLISECONDS = TimeUnit.HOURS.toMillis(1L);
 
-	public S3Client(Vertx vertx, URI uri, String accessKey, String secretKey, String region, String bucket, String ssec) {
-		this(vertx, uri, accessKey, secretKey, region, bucket, ssec, false);
-	}
+    public S3Client(Vertx vertx, URI uri, String accessKey, String secretKey, String region, String bucket, String ssec) {
+        this(vertx, uri, accessKey, secretKey, region, bucket, ssec, false);
+    }
 
-	public S3Client(Vertx vertx, URI uri, String accessKey, String secretKey, String region, String bucket, String ssec, boolean keepAlive) {
-		this(vertx, uri, accessKey, secretKey, region, bucket, ssec, keepAlive, 10000, 100, 10000L, 16);
-	}
+    public S3Client(Vertx vertx, URI uri, String accessKey, String secretKey, String region, String bucket, String ssec, boolean keepAlive) {
+        this(vertx, uri, accessKey, secretKey, region, bucket, ssec, keepAlive, 10000, 100, 10000L, 16);
+    }
+
+    public S3Client(Vertx vertx, URI uri, String accessKey, String secretKey, String region, String bucket, String ssec, boolean keepAlive,
+                    int timeout, int threshold, long openDelay, int poolSize) {
+        this(vertx, uri, accessKey, secretKey, region, bucket, ssec, keepAlive, timeout, threshold, openDelay, poolSize, false);
+    }
 
 	public S3Client(Vertx vertx, URI uri, String accessKey, String secretKey, String region, String bucket, String ssec, boolean keepAlive,
-					int timeout, int threshold, long openDelay, int poolSize) {
+					int timeout, int threshold, long openDelay, int poolSize, final boolean flat) {
 		this.vertx = vertx;
 		this.host = uri.getHost();
 		this.accessKey = accessKey;
@@ -92,6 +98,7 @@ public class S3Client {
 		this.region = region;
 		this.defaultBucket = bucket;
 		this.ssec = ssec;
+        this.flat = flat;
 		this.httpClient = new ResilientHttpClient(vertx, uri, keepAlive, timeout, threshold, openDelay, poolSize);
 	}
 
@@ -100,7 +107,7 @@ public class S3Client {
 	}
 
 	public void getFileStats(String id, String bucket, Handler<AsyncResult<FileStats>> handler) {
-		id = getPath(id);
+		id = getPath(id, this.flat);
 
 		RequestOptions requestOptions = new RequestOptions()
 			.setMethod(HttpMethod.HEAD)
@@ -163,7 +170,7 @@ public class S3Client {
 
 	public void uploadFile(final HttpServerRequest request, final String bucket, final Long maxSize, FileValidator validator, final Handler<JsonObject> handler) {
 		final String uuid = UUID.randomUUID().toString();
-		final String id = getPath(uuid);
+		final String id = getPath(uuid, this.flat);
 
 		MultipartUpload multipartUpload = new MultipartUpload(vertx, httpClient, host, accessKey, secretKey, region, bucket, ssec);
 		JsonObject metadata = new JsonObject();
@@ -320,7 +327,7 @@ public class S3Client {
 	public void downloadFile(String id, final HttpServerRequest request, String bucket,
 			boolean inline, String downloadName, JsonObject metadata, final String eTag,
 			final Handler<AsyncResult<Void>> resultHandler) {
-		final String fileId = getPath(id);
+		final String fileId = getPath(id, this.flat);
 
 		final HttpServerResponse resp = request.response();
 		if (!inline) {
@@ -411,12 +418,12 @@ public class S3Client {
 			});
 	}
 
-	public void readFile(final String id, final Handler<AsyncResult<StorageObject>> handler) {
-		readFile(id, defaultBucket, handler);
-	}
+    public void readFile(final String id, final Handler<AsyncResult<StorageObject>> handler) {
+        readFile(id, defaultBucket, handler);
+    }
 
 	public void readFile(final String id, String bucket, final Handler<AsyncResult<StorageObject>> handler) {
-		final String idPrefixed = getPath(id);
+		final String idPrefixed = getPath(id, this.flat);
 
 		RequestOptions requestOptions = new RequestOptions()
 			.setMethod(HttpMethod.GET)
@@ -472,7 +479,7 @@ public class S3Client {
 	}
 
 	public void readFileStream(String id, String bucket, final Handler<AsyncResult<HttpClientResponse>> handler) {
-		final String fileId = getPath(id);
+		final String fileId = getPath(id, this.flat);
 
 		RequestOptions requestOptions = new RequestOptions()
 			.setMethod(HttpMethod.GET)
@@ -501,12 +508,12 @@ public class S3Client {
 			});
 	}
 
-	public void writeFile(StorageObject object, final Handler<AsyncResult<String>> handler) {
-		writeFile(object, defaultBucket, handler);
-	}
+    public void writeFile(StorageObject object, final Handler<AsyncResult<String>> handler) {
+        writeFile(object, defaultBucket, handler);
+    }
 
 	public void writeFile(StorageObject object, String bucket, final Handler<AsyncResult<String>> handler) {
-		final String id = (object.getId() != null) ? getPath(object.getId()) : getPath(UUID.randomUUID().toString());
+		final String id = (object.getId() != null) ? getPath(object.getId(), this.flat) : getPath(UUID.randomUUID().toString(), this.flat);
 
 		RequestOptions requestOptions = new RequestOptions()
 			.setMethod(HttpMethod.PUT)
@@ -543,7 +550,7 @@ public class S3Client {
 	}
 
     public void deleteFile(String id, String bucket, final Handler<AsyncResult<Void>> handler) {
-	    deleteFileWithPath(getPath(id), bucket, handler);
+	    deleteFileWithPath(getPath(id, this.flat), bucket, handler);
     }
 
 	public void deleteFileWithPath(String path, final Handler<AsyncResult<Void>> handler) {
@@ -586,7 +593,7 @@ public class S3Client {
 
 	public void copyFile(String from, String bucket, final Handler<AsyncResult<String>> handler) {
 		final String uuid = UUID.randomUUID().toString();
-		final String id = getPath(uuid);
+		final String id = getPath(uuid, this.flat);
 
 		RequestOptions requestOptions = new RequestOptions()
 			.setMethod(HttpMethod.PUT)
@@ -598,7 +605,7 @@ public class S3Client {
 				AwsUtils.setSSECCopy(req, ssec);
 				// Set before signing: SigV4 collects the x-amz-* headers carried by the request at signature
 				// time, and S3 rejects the request naming any x-amz-* header absent from SignedHeaders.
-				req.putHeader("x-amz-copy-source", "/" + bucket + "/" + getPath(from));
+				req.putHeader("x-amz-copy-source", "/" + bucket + "/" + getPath(from, this.flat));
 				try {
 					AwsUtils.sign(req, accessKey, secretKey, region);
 				} catch (SignatureException e) {
@@ -626,7 +633,7 @@ public class S3Client {
 
 	public void writeToFileSystem(String id, final String destination, String bucket,
 			final Handler<AsyncResult<String>> handler) {
-    final String fileId = getPath(id);
+    final String fileId = getPath(id, this.flat);
     writeToFileSystemWithId(fileId, destination, bucket, handler);
   }
 
@@ -708,7 +715,7 @@ public class S3Client {
 			return;
 		}
 
-		final String idPrefixed = getPath(id);
+		final String idPrefixed = getPath(id, this.flat);
 
 		MultipartUpload multipartUpload = new MultipartUpload(vertx, httpClient, host, accessKey, secretKey, region, bucket, ssec);
 		multipartUpload.upload(path, idPrefixed, result -> {
@@ -766,7 +773,7 @@ public class S3Client {
 
 	public void writeBufferStream(final String id, ReadStream<Buffer> bufferReadStream, String contentType, String filename, Handler<AsyncResult<JsonObject>> handler) {
 		bufferReadStream.pause();
-		final String idPrefixed = getPath(id);
+		final String idPrefixed = getPath(id, this.flat);
 
 		final JsonObject res = new JsonObject();
 		final JsonObject metadata = new JsonObject();
@@ -963,7 +970,7 @@ public class S3Client {
 			handler.handle(failedFuture("endsWith must be 4 characters or higher"));
 			return;
 		}
-		String path = getPath(endsWith);
+		String path = getPath(endsWith, this.flat);
 		String prefix = path.substring(0, path.lastIndexOf("/")+1);
 
 		listBucket(prefix, null, results -> {
@@ -998,20 +1005,21 @@ public class S3Client {
 		}
 	}
 
-	public static String getPath(final String id) {
+    public static String getPath(final String id) {
+        if (id.charAt(2) == File.separator.charAt(0) && id.charAt(5) == File.separator.charAt(0)) {
+            return id;
+        }
+        return getPath(id, false);
+    }
+
+	public static String getPath(final String id, final boolean flat) {
 		String path;
-
-		if (id.charAt(2) == File.separator.charAt(0) && id.charAt(5) == File.separator.charAt(0)) {
-			return id;
-		}
-
 		try {
-			path = Storage.getFilePath(id, "", false);
+			path = Storage.getFilePath(id, "", flat);
 		} catch (FileNotFoundException e) {
 			log.error("File not found");
 			return "";
 		}
-
 		return path;
 	}
 

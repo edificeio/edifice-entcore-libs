@@ -60,6 +60,7 @@ public class S3Storage implements Storage {
     private final S3Client s3Client;
     private final String bucket;
     private final FileSystem fs;
+    private final boolean flat;
 
     private AntivirusClient antivirus;
     private FileValidator validator;
@@ -69,11 +70,16 @@ public class S3Storage implements Storage {
     private static final int DOWNLOAD_TO_FS_BATCH_SIZE = 10;
 
     private static final Logger log = LoggerFactory.getLogger(S3Storage.class);
-    
+
     public S3Storage(Vertx vertx, URI uri, String accessKey, String secretKey, String region, String bucket, String ssec, boolean keepAlive, int timeout, int threshold, long openDelay, int poolSize) {
+        this(vertx, uri, accessKey, secretKey, region, bucket, ssec, keepAlive, timeout, threshold, openDelay, poolSize, false);
+    }
+
+    public S3Storage(Vertx vertx, URI uri, String accessKey, String secretKey, String region, String bucket, String ssec, boolean keepAlive, int timeout, int threshold, long openDelay, int poolSize, boolean flat) {
         this.bucket = bucket;
-        this.s3Client = new S3Client(vertx, uri, accessKey, secretKey, region, bucket, ssec, keepAlive, timeout, threshold, openDelay, poolSize);
+        this.s3Client = new S3Client(vertx, uri, accessKey, secretKey, region, bucket, ssec, keepAlive, timeout, threshold, openDelay, poolSize, flat);
         this.fs = vertx.fileSystem();
+        this.flat = flat;
     }
 
     @Override
@@ -110,7 +116,7 @@ public class S3Storage implements Storage {
         s3Client.uploadFile(request, maxSize, validator, ar -> {
             handler.handle(ar);
             if (ar.getString("status").equals("ok")) {
-                scanFile(S3Client.getPath(ar.getString("_id")));
+                scanFile(S3Client.getPath(ar.getString("_id"), this.flat));
             }
         });
     }
@@ -150,14 +156,14 @@ public class S3Storage implements Storage {
 
             handler.handle(j);
             if (j.getString("status") == "ok") {
-                scanFile(S3Client.getPath(j.getString("_id")));
+                scanFile(S3Client.getPath(j.getString("_id"), this.flat));
             }
         });
     }
     
     @Override
     public Future<JsonObject> writeBufferStream(ReadStream<Buffer> bufferReadStream, String contentType, String filename) {
-        return writeBufferStream(S3Client.getPath(UUID.randomUUID().toString()), bufferReadStream, contentType, filename);
+        return writeBufferStream(S3Client.getPath(UUID.randomUUID().toString(), this.flat), bufferReadStream, contentType, filename);
     }
     
     @Override
@@ -170,7 +176,7 @@ public class S3Storage implements Storage {
 
                 promise.complete(result);
                 if (result.getString("status").equals("ok")) {
-                    scanFile(S3Client.getPath(result.getString("_id")));
+                    scanFile(S3Client.getPath(result.getString("_id"), this.flat));
                 }
             }
             else {
@@ -184,14 +190,14 @@ public class S3Storage implements Storage {
     @Override
     public void writeFsFile(String filename, Handler<JsonObject> handler)
     {
-        writeFsFile(S3Client.getPath(UUID.randomUUID().toString()), filename, handler);
+        writeFsFile(S3Client.getPath(UUID.randomUUID().toString(), this.flat), filename, handler);
     }
     
     @Override
     public void writeFsFile(String id, String filename, Handler<JsonObject> handler) {
         s3Client.writeFromFileSystem(id, filename, bucket, json -> {
             if (json.getString("status") == "ok") {
-                scanFile(S3Client.getPath(json.getString("_id")));
+                scanFile(S3Client.getPath(json.getString("_id"), this.flat));
             }
             handler.handle(json);
         });
@@ -466,7 +472,7 @@ public class S3Storage implements Storage {
     }
 
     public void getReadPath(String id, Handler<AsyncResult<String>> handler) {
-        final String idPath = S3Client.getPath(id);
+        final String idPath = S3Client.getPath(id, this.flat);
 
 		if (fallbackStorage != null) {
 			fallbackStorage.downloadFileIfNotExists(idPath, idPath, new Handler<AsyncResult<String>>() {

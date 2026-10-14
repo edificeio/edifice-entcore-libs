@@ -260,7 +260,8 @@ public abstract class GenericShareService implements ShareService {
 			sanitizedSearch = null;
 			}
 
-		findVisibleOrSharedGroups(userId, groupParams, (visibleGroups) -> {
+		findVisibleOrSharedIdentities(userId, sanitizedSearch, usersIds, groupParams.getJsonArray("groupIds"), (visibles) -> {
+			final JsonArray visibleGroups = visibles.getJsonArray("groups");
 			JsonObject groups = new JsonObject();
 				groups.put("visibles", visibleGroups);
 				groups.put("checked", groupCheckedActions);
@@ -270,38 +271,68 @@ public abstract class GenericShareService implements ShareService {
 					UserUtils.groupDisplayName(group, acceptLanguage);
 				}
 			}
-			UserUtils.findVisibleUsersForShare(this.eb, userId, sanitizedSearch, usersIds, (visibleUsers) -> {
-					JsonObject users = new JsonObject();
-					users.put("visibles", visibleUsers);
-					users.put("checked", userCheckedActions);
-				JsonObject share = (new JsonObject()).put("actions", actions).put("groups", groups).put("users", users);
-					handler.handle(share);
-				});
-			});
-		}
+			JsonObject users = new JsonObject();
+			users.put("visibles", visibles.getJsonArray("users"));
+			users.put("checked", userCheckedActions);
+			JsonObject share = (new JsonObject()).put("actions", actions).put("groups", groups).put("users", users);
+			handler.handle(share);
+		});
+	}
 
 	/**
-	 * Groups the user can see, plus the groups the resource is already shared with (groupParams.groupIds)
-	 * whether visible or not.
+	 * Users and groups the user can see, plus the ones the resource is already shared with, whether visible or
+	 * not. The search only applies to the visible users : groups and already shared identities are always given.
+	 * Visibility is computed in a single call, then the details are read in a single transaction.
+	 * @return { users: [{id, username, lastName, firstName, profile}],
+	 * groups: [{id, name, groupDisplayName, structureName, labels}] }
 	 */
-	private void findVisibleOrSharedGroups(String userId, JsonObject groupParams, Handler<JsonArray> handler) {
+	private void findVisibleOrSharedIdentities(String userId, String search, JsonArray sharedUserIds,
+			JsonArray sharedGroupIds, Handler<JsonObject> handler) {
 		final VisibleIdentityRequest request = new VisibleIdentityRequest()
 				.setUserId(userId)
-				.setVisibleIdFilter(VisibleIdentityRequest.VisibleIdFilter.GROUPS);
+				.setItSelf(true)
+				.setSearch(search);
 		UserUtils.findVisibleIdentities(eb, request)
 				.recover(e -> {
-					log.error("[GenericShareService.findVisibleOrSharedGroups] failed to fetch the visible groups of " + userId, e);
+					log.error("[GenericShareService.findVisibleOrSharedIdentities] failed to fetch the visibles of " + userId, e);
 					return Future.succeededFuture(new JsonArray());
 				})
 				.onSuccess(visibles -> {
-					final JsonArray visibleIds = new JsonArray(visibles.stream()
-							.map(o -> ((JsonObject) o).getString("id"))
-							.collect(Collectors.toList()));
-					final JsonObject params = groupParams.copy().put("visibleIds", visibleIds);
-					Neo4j.getInstance().execute("MATCH (g:Group) WHERE g.id IN {visibleIds} OR g.id IN {groupIds} " +
-							"RETURN distinct g.id as id, g.name as name, g.groupDisplayName as groupDisplayName, " +
-							"g.structureName as structureName, labels(g) as labels ORDER BY name ", params,
-							Neo4jResult.validResultHandler(groups -> handler.handle(groups.isRight() ? groups.right().getValue() : new JsonArray())));
+					final JsonArray visibleUserIds = new JsonArray();
+					final JsonArray visibleGroupIds = new JsonArray();
+					for (Object o : visibles) {
+						if (!(o instanceof JsonObject)) continue;
+						final JsonObject visible = (JsonObject) o;
+						if (Boolean.TRUE.equals(visible.getBoolean("isUser"))) {
+							visibleUserIds.add(visible.getString("id"));
+						} else {
+							visibleGroupIds.add(visible.getString("id"));
+						}
+					}
+					if (sharedUserIds != null) visibleUserIds.addAll(sharedUserIds);
+					if (sharedGroupIds != null) visibleGroupIds.addAll(sharedGroupIds);
+					// A single IN list on purpose : "id IN {a} OR id IN {b}" makes the planner drop the id index and
+					// scan every node of the label
+					final StatementsBuilder statements = new StatementsBuilder()
+							.add("MATCH (u:User) WHERE u.id IN {ids} " +
+									"RETURN distinct u.id as id, u.displayName as username, u.lastName as lastName, " +
+									"u.firstName as firstName, HEAD(u.profiles) as profile ORDER BY username ",
+									new JsonObject().put("ids", visibleUserIds))
+							.add("MATCH (g:Group) WHERE g.id IN {ids} " +
+									"RETURN distinct g.id as id, g.name as name, g.groupDisplayName as groupDisplayName, " +
+									"g.structureName as structureName, labels(g) as labels ORDER BY name ",
+									new JsonObject().put("ids", visibleGroupIds));
+					Neo4j.getInstance().executeTransaction(statements.build(), null, true, Neo4jResult.validResultsHandler(results -> {
+						if (results.isRight()) {
+							handler.handle(new JsonObject()
+									.put("users", results.right().getValue().getJsonArray(0))
+									.put("groups", results.right().getValue().getJsonArray(1)));
+						} else {
+							log.error("[GenericShareService.findVisibleOrSharedIdentities] failed to read the visibles of " + userId + " : " +
+									results.left().getValue());
+							handler.handle(new JsonObject().put("users", new JsonArray()).put("groups", new JsonArray()));
+						}
+					}));
 				});
 	}
 

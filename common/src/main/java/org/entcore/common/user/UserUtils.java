@@ -40,6 +40,7 @@ import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.core.shareddata.LocalMap;
 import org.entcore.common.neo4j.Neo4j;
+import org.entcore.common.neo4j.Neo4jResult;
 import org.entcore.common.session.SessionRecreationRequest;
 import org.entcore.common.user.dto.VisibleIdentityRequest;
 import org.entcore.common.utils.HostUtils;
@@ -802,6 +803,50 @@ public class UserUtils {
                         .map(JsonArray.class::cast)
                         .flatMap(arr -> arr.stream().map(JsonObject.class::cast))
                         .collect(Collector.of(JsonArray::new, JsonArray::add, JsonArray::add)));
+	}
+
+	/**
+	 * Members of the given groups that the user can see, whatever the path they are visible through.
+	 * <p>
+	 * The groups are used as sets, not as communication channels : a member is returned as soon as the user can see
+	 * him/her, even if the group itself is not visible or does not let its members be seen (no users property, as on
+	 * the function and discipline groups). This is the semantic of the former "MATCH (g:Group)<-[:IN]-(visibles)"
+	 * queries. To get the users seen through a group, use {@link VisibleIdentityRequest.VisibleIdFilter#USERS_OF_GROUPS}.
+	 * <p>
+	 * Members are read first, then their visibility is checked in a single call.
+	 * @param userId id of the user doing the request
+	 * @param groupIds ids of the groups
+	 * @param itSelf whether the user may be part of the result
+	 * @return JsonArray of JsonObjects : { id, displayName, lastName, profiles }
+	 */
+	public static Future<JsonArray> findVisibleMembersOfGroups(EventBus eb, String userId, List<String> groupIds, boolean itSelf) {
+		if (StringUtils.isEmpty(userId) || groupIds == null || groupIds.isEmpty()) {
+			return Future.succeededFuture(new JsonArray());
+		}
+		final Promise<JsonArray> promise = Promise.promise();
+		final String query =
+				"MATCH (g:Group)<-[:IN]-(u:User) WHERE g.id IN {groupIds} " +
+				"RETURN DISTINCT u.id as id, u.displayName as displayName, u.lastName as lastName, u.profiles as profiles ";
+		Neo4j.getInstance().execute(query, new JsonObject().put("groupIds", new JsonArray(groupIds)), Neo4jResult.validResultHandler(members -> {
+			if (members.isRight()) {
+				promise.complete(members.right().getValue());
+			} else {
+				promise.fail(members.left().getValue());
+			}
+		}));
+		return promise.future().compose(members -> {
+			final JsonArray memberIds = new JsonArray(members.stream()
+					.map(o -> ((JsonObject) o).getString("id"))
+					.collect(Collectors.toList()));
+			return filterFewOrGetAllVisibles(eb, userId, memberIds, itSelf).map(visibles -> {
+				final Set<String> visibleIds = visibles.stream()
+						.map(o -> ((JsonObject) o).getString("id"))
+						.collect(Collectors.toSet());
+				return members.stream()
+						.filter(o -> visibleIds.contains(((JsonObject) o).getString("id")))
+						.collect(Collector.of(JsonArray::new, JsonArray::add, JsonArray::addAll));
+			});
+		});
 	}
 
 	public static Future<JsonArray> findVisibleIdentities(EventBus eb, VisibleIdentityRequest request) {

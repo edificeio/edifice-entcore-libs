@@ -22,6 +22,11 @@ public class VisibleIdentityRequest {
     private String profileFilter;
 
     public enum VisibleIdFilter {
+        /**
+         * Users seen through the visible groups : a group is a channel and must let its members be seen
+         * (users property set to BOTH or OUTGOING). For "the visible members of these groups", whatever the path
+         * they are visible through, use UserUtils.findVisibleMembersOfGroups instead.
+         */
         USERS_OF_GROUPS,
         BOTH,
         /** Only the visible groups, no user */

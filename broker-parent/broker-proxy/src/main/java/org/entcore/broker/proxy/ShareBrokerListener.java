@@ -2,6 +2,8 @@ package org.entcore.broker.proxy;
 
 import io.vertx.core.Future;
 import org.entcore.broker.api.BrokerListener;
+import org.entcore.broker.api.dto.shares.CheckResourceRightRequestDTO;
+import org.entcore.broker.api.dto.shares.CheckResourceRightResponseDTO;
 import org.entcore.broker.api.dto.shares.RemoveGroupSharesRequestDTO;
 import org.entcore.broker.api.dto.shares.RemoveGroupSharesResponseDTO;
 import org.entcore.broker.api.dto.shares.UpsertGroupSharesRequestDTO;
@@ -25,4 +27,13 @@ public interface ShareBrokerListener {
    */
   @BrokerListener(subject = "share.group.remove.{application}", proxy = true)
   Future<RemoveGroupSharesResponseDTO> removeGroupShares(RemoveGroupSharesRequestDTO request);
+
+  /**
+   * This method is used to check whether a user holds a share role on a resource (directly or through one of his groups).
+   * Resource ownership is not checked.
+   * @param request The request object containing the user, the resource and the role to check.
+   * @return A response object indicating whether the role is granted.
+   */
+  @BrokerListener(subject = "share.check.{application}", proxy = true)
+  Future<CheckResourceRightResponseDTO> checkResourceRight(CheckResourceRightRequestDTO request);
 }

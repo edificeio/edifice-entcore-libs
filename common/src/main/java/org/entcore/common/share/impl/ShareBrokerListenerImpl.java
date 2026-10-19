@@ -3,8 +3,11 @@ package org.entcore.common.share.impl;
 import fr.wseduc.webutils.security.SecuredAction;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
+import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import org.entcore.broker.api.dto.shares.CheckResourceRightRequestDTO;
+import org.entcore.broker.api.dto.shares.CheckResourceRightResponseDTO;
 import org.entcore.broker.api.dto.shares.RemoveGroupSharesRequestDTO;
 import org.entcore.broker.api.dto.shares.RemoveGroupSharesResponseDTO;
 import org.entcore.broker.api.dto.shares.SharesResponseDTO;
@@ -13,6 +16,7 @@ import org.entcore.broker.api.dto.shares.UpsertGroupSharesResponseDTO;
 import org.entcore.broker.proxy.ShareBrokerListener;
 import org.entcore.common.share.ShareRoles;
 import org.entcore.common.share.ShareService;
+import org.entcore.common.user.UserUtils;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 
@@ -28,12 +32,26 @@ public class ShareBrokerListenerImpl implements ShareBrokerListener {
     private static final Logger log = LoggerFactory.getLogger(ShareBrokerListenerImpl.class);
     private final ShareService shareService;
     private final Map<String, SecuredAction> securedActions;
+    private final Vertx vertx;
     /**
      * Creates a new ShareBrokerListenerMongo with specified resource ID field.
-     * 
+     * Uses the Vert.x instance of the current context: must be called from a verticle.
+     *
      * @param shareService The ShareService instance to be used for share operations
      */
     public ShareBrokerListenerImpl(final Map<String, SecuredAction> securedActions, final ShareService shareService) {
+        this(Vertx.currentContext().owner(), securedActions, shareService);
+    }
+
+    /**
+     * Creates a new ShareBrokerListenerMongo with specified resource ID field.
+     *
+     * @param vertx The Vert.x instance
+     * @param securedActions The secured actions of the application
+     * @param shareService The ShareService instance to be used for share operations
+     */
+    public ShareBrokerListenerImpl(final Vertx vertx, final Map<String, SecuredAction> securedActions, final ShareService shareService) {
+        this.vertx = vertx;
         this.shareService = shareService;
         this.securedActions = securedActions;
     }
@@ -138,6 +156,53 @@ public class ShareBrokerListenerImpl implements ShareBrokerListener {
             }
         });
         
+        return promise.future();
+    }
+
+    /**
+     * Checks whether a user holds a share role on a resource, directly or through one of his groups.
+     * Resource ownership is not checked (owners are not listed in shares).
+     *
+     * @param request The request containing user ID, resource ID and role to check
+     * @return Future with the response indicating whether the role is granted
+     */
+    @Override
+    public Future<CheckResourceRightResponseDTO> checkResourceRight(CheckResourceRightRequestDTO request) {
+        if (request == null || !request.isValid()) {
+            log.error("Invalid request for checkResourceRight: {}", request);
+            return Future.failedFuture("request.parameters.invalid");
+        }
+        // Get names of the secured actions bound to the role
+        final Set<String> roleActions = new HashSet<>(ShareRoles.getSecuredActionNameByRole(request.getRole(), securedActions));
+        if (roleActions.isEmpty()) {
+            log.error("No secured action found for role in checkResourceRight: {}", request);
+            return Future.failedFuture("role.invalid");
+        }
+        final Promise<CheckResourceRightResponseDTO> promise = Promise.promise();
+        // Load user's groups (same source as HTTP resource filters)
+        UserUtils.getUserInfos(vertx.eventBus(), request.getUserId(), user -> {
+            if (user == null) {
+                promise.complete(new CheckResourceRightResponseDTO(false));
+                return;
+            }
+            final Set<String> userGroupIds = user.getGroupsIds() == null ? Collections.emptySet() : new HashSet<>(user.getGroupsIds());
+            // Raw shares of the resource: [{userId|groupId, <action>: true, ...}]
+            shareService.shareInfosWithoutVisible(request.getUserId(), request.getResourceId(), shareEvent -> {
+                if (shareEvent.isLeft()) {
+                    log.error("Error fetching shares for checkResourceRight: {}", shareEvent.left().getValue());
+                    promise.fail(shareEvent.left().getValue());
+                    return;
+                }
+                // Granted if a share of the user or of one of his groups contains at least one action of the role
+                final boolean granted = shareEvent.right().getValue().stream()
+                        .filter(JsonObject.class::isInstance)
+                        .map(JsonObject.class::cast)
+                        .filter(share -> request.getUserId().equals(share.getString("userId"))
+                                || userGroupIds.contains(share.getString("groupId")))
+                        .anyMatch(share -> roleActions.stream().anyMatch(action -> Boolean.TRUE.equals(share.getValue(action))));
+                promise.complete(new CheckResourceRightResponseDTO(granted));
+            });
+        });
         return promise.future();
     }
 

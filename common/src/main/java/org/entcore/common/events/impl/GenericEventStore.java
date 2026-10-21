@@ -65,6 +65,8 @@ public abstract class GenericEventStore implements EventStore {
 	protected static final Logger logger = LoggerFactory.getLogger(GenericEventStore.class);
 	private static Validator eventsValidator;
 	private static boolean validatorInitialized = false;
+	private static final String MOBILE_APP_HEADER = "X-APP";
+	private static final String MOBILE_APP_HEADER_VALUE = "mobile";
 
 
 	private boolean accessDedupEnabled = true;
@@ -92,6 +94,11 @@ public abstract class GenericEventStore implements EventStore {
 			event.put("osVersion", osVersion);
 			event.put("deviceType", deviceType);
 			event.put("deviceName", deviceName);
+
+			// mobile app does not sends device cookies on login
+			if (deviceTypeRaw == null) {
+				fillDeviceFromMobileAppHeaders(request, event);
+			}
 
 			final String ip = Renders.getIp(request);
 			if (ip != null) {
@@ -423,6 +430,17 @@ public abstract class GenericEventStore implements EventStore {
 		}
 	}
 	
+	/**
+	 * Sets the device type for the mobile app, identified by the header sent on every request (X-APP: mobile).
+	 * Does nothing for other clients (browsers, server-to-server connectors).
+	 */
+	private static void fillDeviceFromMobileAppHeaders(HttpServerRequest request, JsonObject event) {
+		if (!MOBILE_APP_HEADER_VALUE.equals(request.headers().get(MOBILE_APP_HEADER))) {
+			return;
+		}
+		event.put("deviceType", "mobile");
+	}
+
 	private static String decodeCookie(String value) {
 		if (value == null) {
 			return "Unknown";

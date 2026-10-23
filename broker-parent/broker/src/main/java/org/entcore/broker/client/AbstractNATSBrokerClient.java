@@ -558,6 +558,7 @@ public abstract class AbstractNATSBrokerClient implements BrokerClient {
                 return null;
             }
         }
+        return TraceIdContextHandler.getTraceId();
     }
 
     /**

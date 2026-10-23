@@ -131,7 +131,7 @@ install () {
 }
 
 buildBroker () {
-  ./edifice install --all=false --clients=false --client-nest=true --client-node=true --client-vertx=true --back=false --project-type=entcore --client-python=false $EDIFICE_CLI_DEBUG_OPTION
+  ./edifice install --all=false --clients=true --client-nest=true --client-node=true --client-vertx=true --back=false --project-type=entcore --client-python=false $EDIFICE_CLI_DEBUG_OPTION
 }
 
 test () {

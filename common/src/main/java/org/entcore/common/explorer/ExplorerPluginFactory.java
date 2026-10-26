@@ -4,6 +4,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.mongo.MongoClient;
+import org.entcore.common.explorer.impl.ExplorerPluginCommunicationHttp;
 import org.entcore.common.explorer.impl.ExplorerPluginCommunicationPostgres;
 import org.entcore.common.explorer.impl.ExplorerPluginCommunicationRedis;
 import org.entcore.common.mongodb.MongoClientFactory;
@@ -80,6 +81,14 @@ public class ExplorerPluginFactory {
                   return failedFuture(e);
                 }
               });
+          } else if (explorerConfig.getBoolean("event-bus", false)) {
+              final IExplorerPluginMetricsRecorder metricsRecorder = ExplorerPluginMetricsFactory.getExplorerPluginMetricsRecorder("event-bus");
+              return succeededFuture(
+                  new ExplorerPluginCommunicationHttp(vertxInstance,
+                      explorerConfig.getString("address", "explorer.index"),
+                      explorerConfig.getLong("timeout", 30_000L),
+                      metricsRecorder,
+                      isEnabled()));
           } else {
             final IExplorerPluginMetricsRecorder metricsRecorder = ExplorerPluginMetricsFactory.getExplorerPluginMetricsRecorder("redis");
             return RedisClient.create(vertxInstance, getRedisConfig())

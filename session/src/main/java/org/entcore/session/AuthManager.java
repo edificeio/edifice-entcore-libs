@@ -955,6 +955,7 @@ public class AuthManager extends BusModBase implements Handler<Message<JsonObjec
 				"OPTIONAL MATCH gp-[:DEPENDS]->(c:Class) WITH n, manualGroups, COLLECT(distinct [c.id, c.name]) as classes, COLLECT(distinct [s.id, s.name, s.UAI, s.hasApp, s.ignoreMFA]) as structures, COLLECT(distinct s) as structureNodes, REDUCE(acc=[], pRed IN COLLECT(COALESCE(s.optionEnabled, [])) | pRed+acc ) as optionEnabled, COLLECT(distinct gp.id) as groupsIds " +
 				"OPTIONAL MATCH n-[rf:HAS_FUNCTION]->(f:Function) " +
 				"OPTIONAL MATCH n<-[:RELATED]-(child:User) " +
+				"OPTIONAL MATCH n-[:HAS_POSITION]->(pos:UserPosition)-[:IN]->(posStruct:Structure) " +
 				"RETURN distinct " +
 				"n.classes as classNames, n.level as level, n.email as email, n.mobile as mobile, n.login as login, classes, " +
 				"n.lastName as lastName, n.firstName as firstName, n.externalId as externalId, n.federated as federated, " +
@@ -963,7 +964,8 @@ public class AuthManager extends BusModBase implements Handler<Message<JsonObjec
 				"COLLECT(distinct [child.id, child.lastName, child.firstName]) as childrenInfo, has(n.password) as hasPw, " +
 				"structures, COLLECT(distinct [f.externalId, rf.scope]) as functions, " +
 				"groupsIds, structureNodes, n.structures as structureExternalId, manualGroups, n.federatedIDP as federatedIDP, n.functions as aafFunctions, " +
-				"optionEnabled, CASE WHEN n.totp IS NOT NULL AND n.totp <> '' THEN true ELSE false END as hasTotp";
+				"optionEnabled, CASE WHEN n.totp IS NOT NULL AND n.totp <> '' THEN true ELSE false END as hasTotp, " +
+				"COLLECT(distinct {id: pos.id, name: pos.name, source: pos.source, structureId: posStruct.id}) as userPositions";
 		final String query2 =
 				"MATCH (u:User {id : {id}}) WHERE exists(u.login) " +
 				"MATCH (u)-[:IN]->()-[:AUTHORIZED]->(r:Role) " +
@@ -1150,6 +1152,15 @@ public class AuthManager extends BusModBase implements Handler<Message<JsonObjec
 					j.put("classes", new JsonArray(classesIds));
 					j.put("realClassesNames", new JsonArray(classesNames));
 					j.put("functions", functions);
+					final JsonArray userPositions = new JsonArray();
+					for (Object o : getOrElse(j.getJsonArray("userPositions"), new JsonArray())) {
+						if (!(o instanceof JsonObject)) continue;
+						final JsonObject position = (JsonObject) o;
+						if (position.getString("id") != null) {
+							userPositions.add(position);
+						}
+					}
+					j.put("userPositions", userPositions);
 					j.put("authorizedActions", actions);
 					j.put("apps", apps);
 					j.put("childrenIds", new JsonArray(childrenIds));

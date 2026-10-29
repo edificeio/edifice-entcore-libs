@@ -269,6 +269,46 @@ public class UserInfos {
 			this.structureExternalIds = structureExternalIds;
 		}
 	}
+
+	/** Session-shaped DTO for a user's business job title (HAS_POSITION), distinct from the administrative {@link Function} (HAS_FUNCTION). */
+	public static class UserPosition {
+		private String id;
+		private String name;
+		private String source;
+		private String structureId;
+
+		public String getId() {
+			return id;
+		}
+
+		public void setId(String id) {
+			this.id = id;
+		}
+
+		public String getName() {
+			return name;
+		}
+
+		public void setName(String name) {
+			this.name = name;
+		}
+
+		public String getSource() {
+			return source;
+		}
+
+		public void setSource(String source) {
+			this.source = source;
+		}
+
+		public String getStructureId() {
+			return structureId;
+		}
+
+		public void setStructureId(String structureId) {
+			this.structureId = structureId;
+		}
+	}
 	private Boolean hasApp;
 	private Boolean ignoreMFA;
 	private String userId;
@@ -327,6 +367,14 @@ public class UserInfos {
 		this.functions = functions;
 	}
 
+	public List<UserPosition> getUserPositions() {
+		return userPositions;
+	}
+
+	public void setUserPositions(List<UserPosition> userPositions) {
+		this.userPositions = userPositions;
+	}
+
 	public boolean isADML()
 	{
 		return this.functions != null && this.functions.containsKey(DefaultFunctions.ADMIN_LOCAL);
@@ -343,6 +391,7 @@ public class UserInfos {
 	}
 
 	private Map<String, Function> functions;
+	private List<UserPosition> userPositions;
 
 	public String getUserId() {
 		return userId;

@@ -230,6 +230,7 @@ public abstract class TemplatedEmailRenders extends Renders {
 		});
 
 		this.templateProcessor.setLambda("host", hostLambda);
+		this.templateProcessor.setLambda("datetime", new ZonedDateLambda(I18n.acceptLanguage(request)));
 	}
 
 	/**

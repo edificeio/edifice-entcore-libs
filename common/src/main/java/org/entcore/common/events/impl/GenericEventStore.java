@@ -404,6 +404,8 @@ public abstract class GenericEventStore implements EventStore {
 				event.mergeIn(requestAttributes);
 			}
 		}
+		// device info missing from the request (e.g. mobile app outside mobile ACCESS events) is taken from the session
+		DeviceInfo.fillFromSession(event, user);
 
 		return event;
 	}

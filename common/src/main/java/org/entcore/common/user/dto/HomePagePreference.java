@@ -1,5 +1,7 @@
 package org.entcore.common.user.dto;
 
+// TODO #IMPULS-6352 Supprimer les références à betaEnabled (tout le fichier, ici)
+
 public class HomePagePreference implements Preference {
 
     private boolean betaEnabled;

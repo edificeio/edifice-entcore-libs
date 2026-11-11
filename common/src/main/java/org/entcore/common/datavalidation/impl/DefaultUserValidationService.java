@@ -22,6 +22,7 @@ import org.entcore.common.datavalidation.utils.DataStateUtils;
 import org.entcore.common.datavalidation.utils.UserValidationFactory;
 import org.entcore.common.email.EmailFactory;
 import org.entcore.common.events.EventStore;
+import org.entcore.common.http.renders.ZonedDateLambda;
 import org.entcore.common.neo4j.Neo4j;
 import org.entcore.common.sms.SmsSender;
 import org.entcore.common.sms.SmsSenderFactory;
@@ -246,6 +247,27 @@ public class DefaultUserValidationService implements UserValidationService {
 		});
 		return promise.future();
     }
+
+	/**
+	 * @return the user's timezone preference (uac.timezone), or null when unknown :
+	 * the email date then falls back to {@link ZonedDateLambda#DEFAULT_TIMEZONE}.
+	 */
+	private Future<String> retrieveTimezonePreference(String userId) {
+		if (userId == null) {
+			return Future.succeededFuture();
+		}
+		final Promise<String> promise = Promise.promise();
+		String query =
+				"MATCH (u:`User` { id : {id}}) " +
+				"OPTIONAL MATCH (u)-[:PREFERS]->(uac:UserAppConf) " +
+				"RETURN head(collect(uac.timezone)) as timezone ";
+		JsonObject params = new JsonObject().put("id", userId);
+		neo.execute(query, params, m -> {
+			Either<String, JsonObject> r = validUniqueResult(m);
+			promise.complete(r.isRight() ? r.right().getValue().getString("timezone") : null);
+		});
+		return promise.future();
+	}
 
     @Override
 	public Boolean getIsMFA(final JsonObject session) {
@@ -520,7 +542,10 @@ public class DefaultUserValidationService implements UserValidationService {
         targets.put("email", userInfos.getEmail());
         targets.put("mobile", userInfos.getMobile());
 
-        return mobileSvc.sendWarningMessage(request, targets, templateParams);
+        return retrieveTimezonePreference(userInfos.getUserId()).compose(timezone -> {
+            templateParams.put(ZonedDateLambda.TIMEZONE_PARAM, timezone);
+            return mobileSvc.sendWarningMessage(request, targets, templateParams);
+        });
     }
 
     //////////////// Email-related methods ////////////////
@@ -625,8 +650,10 @@ public class DefaultUserValidationService implements UserValidationService {
         Map<String, String> targets = new HashMap<>();
         targets.put("email", userInfos.getEmail());
 
-        return emailSvc.sendWarningMessage(request, targets, templateParams)
-                .map(id -> id);
+        return retrieveTimezonePreference(userInfos.getUserId()).compose(timezone -> {
+            templateParams.put(ZonedDateLambda.TIMEZONE_PARAM, timezone);
+            return emailSvc.sendWarningMessage(request, targets, templateParams);
+        });
     }
 
 }

@@ -180,6 +180,17 @@ public class Sql implements ISql {
 				insertQuery +" WHERE NOT EXISTS (SELECT * FROM upsert);";
 	}
 
+	public static String listPrepared(Object[] values, String casting) {
+		StringBuilder sb = new StringBuilder("(");
+		if (values != null && values.length > 0) {
+			for (int i = 0; i< values.length; i++) {
+				sb.append("?::").append(casting).append(",");
+			}
+			sb.deleteCharAt(sb.length() - 1);
+		}
+		return sb.append(")").toString();
+	}
+
 	public static String listPrepared(JsonArray array) {
 		return listPrepared(array.getList().toArray());
 	}

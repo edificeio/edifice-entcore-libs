@@ -82,6 +82,10 @@ public class S3Storage implements Storage {
         this.flat = flat;
     }
 
+    public S3Client getS3Client() {
+        return s3Client;
+    }
+
     @Override
     public void stats(final Handler<AsyncResult<BucketStats>> handler) {
         final BucketStats bucketStats = new BucketStats();

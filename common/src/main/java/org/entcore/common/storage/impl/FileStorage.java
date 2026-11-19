@@ -833,6 +833,14 @@ public class FileStorage implements Storage {
 		return basePaths.get(lastBucketIdx);
 	}
 
+	public FileSystem getFileSystem() {
+		return fs;
+	}
+
+	public boolean isFlat() {
+		return flat;
+	}
+
 	@Override
 	public void stats(final Handler<AsyncResult<BucketStats>> handler) {
 		fs.fsProps(getBucket(), new Handler<AsyncResult<FileSystemProps>>() {

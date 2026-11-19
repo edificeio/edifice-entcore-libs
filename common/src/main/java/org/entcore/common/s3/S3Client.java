@@ -91,15 +91,35 @@ public class S3Client {
 
 	public S3Client(Vertx vertx, URI uri, String accessKey, String secretKey, String region, String bucket, String ssec, boolean keepAlive,
 					int timeout, int threshold, long openDelay, int poolSize, final boolean flat) {
+		this(vertx, new ResilientHttpClient(vertx, uri, keepAlive, timeout, threshold, openDelay, poolSize),
+				uri.getHost(), accessKey, secretKey, region, bucket, ssec, flat);
+	}
+
+	private S3Client(Vertx vertx, ResilientHttpClient httpClient, String host, String accessKey, String secretKey,
+					String region, String defaultBucket, String ssec, boolean flat) {
 		this.vertx = vertx;
-		this.host = uri.getHost();
+		this.httpClient = httpClient;
+		this.host = host;
 		this.accessKey = accessKey;
 		this.secretKey = secretKey;
 		this.region = region;
-		this.defaultBucket = bucket;
+		this.defaultBucket = defaultBucket;
 		this.ssec = ssec;
-        this.flat = flat;
-		this.httpClient = new ResilientHttpClient(vertx, uri, keepAlive, timeout, threshold, openDelay, poolSize);
+		this.flat = flat;
+	}
+
+	public boolean isFlat() {
+		return flat;
+	}
+
+	/**
+	 * A view of this client with {@code flat=true} instead of its usual value - same connection
+	 * pool, same credentials, same bucket, only key resolution changes (see
+	 * {@link org.entcore.common.storage.Storage#getFilePath}). Returns {@code this} when already
+	 * flat.
+	 */
+	public S3Client asFlat() {
+		return flat ? this : new S3Client(vertx, httpClient, host, accessKey, secretKey, region, defaultBucket, ssec, true);
 	}
 
 	public void getFileStats(String id, Handler<AsyncResult<FileStats>> handler) {
@@ -593,7 +613,14 @@ public class S3Client {
 
 	public void copyFile(String from, String bucket, final Handler<AsyncResult<String>> handler) {
 		final String uuid = UUID.randomUUID().toString();
-		final String id = getPath(uuid, this.flat);
+		copyFile(from, uuid, bucket, handler);
+	}
+
+	/**
+	 * Same as {@link #copyFile(String, String, Handler)}, with an explicit destination id
+	 */
+	public void copyFile(String from, String to, String bucket, final Handler<AsyncResult<String>> handler) {
+		final String id = getPath(to, this.flat);
 
 		RequestOptions requestOptions = new RequestOptions()
 			.setMethod(HttpMethod.PUT)
@@ -617,7 +644,7 @@ public class S3Client {
 			})
 			.onSuccess(response -> {
 				if (response.statusCode() == 200) {
-					handler.handle(new DefaultAsyncResult<>(uuid));
+					handler.handle(new DefaultAsyncResult<>(to));
 				} else {
 					handler.handle(new DefaultAsyncResult<>(new StorageException(response.statusMessage())));
 				}

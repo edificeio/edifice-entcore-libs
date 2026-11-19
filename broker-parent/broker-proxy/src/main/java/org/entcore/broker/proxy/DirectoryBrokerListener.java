@@ -112,4 +112,13 @@ public interface DirectoryBrokerListener {
    */
   @BrokerListener(subject = "directory.users.get.bygroupids", proxy = true)
   Future<GetUsersFromGroupsResponseDTO> getUsersFromGroups(GetUsersFromGroupsRequestDTO request);
+
+  /**
+   * This method retrieves the group ids a user belongs to (live graph membership, not a cached
+   * session)
+   * @param request The request object containing the user's ENT id.
+   * @return A response object containing that user's group ids.
+   */
+  @BrokerListener(subject = "directory.groups.get.byuserid", proxy = true)
+  Future<GetUserGroupIdsResponseDTO> getUserGroupIds(GetUserGroupIdsRequestDTO request);
 }

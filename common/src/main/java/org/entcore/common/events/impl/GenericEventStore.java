@@ -445,7 +445,7 @@ public abstract class GenericEventStore implements EventStore {
 		if (!MOBILE_APP_HEADER_VALUE.equals(request.headers().get(MOBILE_APP_HEADER))) {
 			return;
 		}
-		event.put("deviceType", "mobile");
+		event.put("deviceType", "mobile_app");
 	}
 
 	private static String decodeCookie(String value) {

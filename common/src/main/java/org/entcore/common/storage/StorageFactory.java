@@ -33,7 +33,6 @@ import org.entcore.common.messaging.IMessagingClient;
 import org.entcore.common.messaging.MessagingClientFactoryProvider;
 import org.entcore.common.storage.impl.*;
 
-import static io.vertx.core.Future.succeededFuture;
 import static org.entcore.common.storage.impl.StorageFileAnalyzer.Configuration.DEFAULT_CONTENT;
 
 import org.entcore.common.validation.ExtensionValidator;

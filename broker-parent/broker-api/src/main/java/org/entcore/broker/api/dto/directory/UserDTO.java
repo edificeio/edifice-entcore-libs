@@ -11,6 +11,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class UserDTO {
     private final String id;
     private final String displayName;
+    private final String login;
     private final String profile;
     private final Map<String, List<String>> functions;
 
@@ -18,10 +19,12 @@ public class UserDTO {
     public UserDTO(
             @JsonProperty("id") String id,
             @JsonProperty("displayName") String displayName,
+            @JsonProperty("login") String login,
             @JsonProperty("profile") String profile,
             @JsonProperty("functions") Map<String, List<String>> functions) {
         this.id = id;
         this.displayName = displayName;
+        this.login = login;
         this.profile = profile;
         this.functions = functions;
     }
@@ -32,6 +35,10 @@ public class UserDTO {
 
     public String getDisplayName() {
         return displayName;
+    }
+
+    public String getLogin() {
+        return login;
     }
 
     public String getProfile() {
@@ -47,6 +54,7 @@ public class UserDTO {
         return "UserDTO{" +
                 "id='" + id + '\'' +
                 ", displayName='" + displayName + '\'' +
+                ", login='" + login + '\'' +
                 ", profile='" + profile + '\'' +
                 ", functions=" + functions +
                 '}';

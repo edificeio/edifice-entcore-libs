@@ -15,15 +15,16 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import io.vertx.core.*;
+import org.entcore.common.bus.WorkspaceHelper;
 import org.entcore.common.folders.impl.DocumentHelper;
+import org.entcore.common.storage.StorageFactory;
+import org.entcore.common.utils.Config;
 import org.entcore.common.utils.StringUtils;
 import org.entcore.common.utils.FileUtils;
 import org.entcore.common.service.impl.AbstractRepositoryEvents;
 import org.entcore.common.service.impl.MongoDbRepositoryEvents;
 
-import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.EventBus;
-import io.vertx.core.eventbus.Message;
 import io.vertx.core.file.FileSystem;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -126,6 +127,7 @@ public class FolderImporter
 	protected Integer busTimeoutSec = 600;
 	protected final FileSystem fs;
 	protected final EventBus eb;
+	protected final Future<WorkspaceHelper> workspaceHelper;
 	protected final boolean throwErrors;
 	protected final Pattern uuidPattern = Pattern.compile(StringUtils.UUID_REGEX);
 
@@ -151,6 +153,7 @@ public class FolderImporter
 					log.error("Could not read archive config:", e);
 				}
             }).onFailure(ex -> log.error("Error when get FolderImporter config", ex));
+		this.workspaceHelper = StorageFactory.build(vertx, Config.getConf()).map(storageFactory -> new WorkspaceHelper(eb, storageFactory.getStorage()));
 	}
 
 	public void setBusTimeoutSec(Integer busTimeoutSec) {
@@ -235,18 +238,11 @@ public class FolderImporter
 		final String docId = DocumentHelper.getId(document);
 		final String fileId = DocumentHelper.getFileId(document);
 
-		JsonObject importParams = new JsonObject()
-																	.put("action", "importDocument")
-																	.put("oldFileId", fileId)
-																	.put("filePath", filePath)
-																	.put("userId", context.userId);
-		final DeliveryOptions options = new DeliveryOptions()
-                .setSendTimeout(this.busTimeoutSec * 1000)
-                .setLocalOnly(true);
-		this.eb.request("org.entcore.workspace", importParams, options, new Handler<AsyncResult<Message<JsonObject>>>()
+		this.workspaceHelper.compose(helper -> helper.importFile(this.fs, filePath, fileId, context.userId))
+			.onComplete(new Handler<AsyncResult<JsonObject>>()
 		{
 			@Override
-			public void handle(AsyncResult<Message<JsonObject>> message)
+			public void handle(AsyncResult<JsonObject> message)
 			{
 				if(message.succeeded() == false)
 				{
@@ -257,7 +253,7 @@ public class FolderImporter
 					return;
 				}
 
-				JsonObject writtenFile = message.result().body();
+				JsonObject writtenFile = message.result();
 				if(writtenFile.getString("status").equals("ok"))
 				{
 					final String storageId = DocumentHelper.getId(writtenFile);

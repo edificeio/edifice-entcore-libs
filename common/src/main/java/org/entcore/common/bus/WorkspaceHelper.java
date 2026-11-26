@@ -22,6 +22,9 @@ package org.entcore.common.bus;
 import fr.wseduc.mongodb.MongoDb;
 import fr.wseduc.webutils.DefaultAsyncResult;
 import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
+import io.vertx.core.Promise;
+import io.vertx.core.file.FileSystem;
 import io.vertx.core.logging.LoggerFactory;
 import org.entcore.common.storage.Storage;
 import org.entcore.common.user.UserInfos;
@@ -43,6 +46,13 @@ public class WorkspaceHelper {
 
 	private static final Logger log = LoggerFactory.getLogger(WorkspaceHelper.class);
 	private static final String WORKSPACE_ADDRESS = "org.entcore.workspace";
+	private static final String WORKSPACE_QUOTA_ADDRESS = "org.entcore.workspace.quota";
+	/**
+	 * Default quota alert threshold (%)
+	 * See {@code final int threshold = config.getInteger("alertStorage", 80);}
+	 * in {@code org.entcore.workspace.Workspace#start}
+	 */
+	public static final int DEFAULT_QUOTA_ALERT_THRESHOLD = 80;
 	private final EventBus eb;
 	private final Storage storage;
 
@@ -187,6 +197,63 @@ public class WorkspaceHelper {
 			.put("document", document)
 			.put("thumbnails", thumbnails);
 		eb.request(WORKSPACE_ADDRESS, m, handler);
+	}
+
+	/**
+	 * Adds {@code size} bytes to the user's storage usage
+	 * The reply body holds the workspace quota response ("storage", "notify").
+	 */
+	public void updateUserQuota(String userId, long size, int threshold, Handler<AsyncResult<Message<JsonObject>>> handler)
+	{
+		JsonObject m = new JsonObject()
+			.put("action", "updateUserQuota")
+			.put("userId", userId)
+			.put("size", size)
+			.put("threshold", threshold);
+		eb.request(WORKSPACE_QUOTA_ADDRESS, m, handler);
+	}
+
+	/**
+	 * Imports a local file into the workspace storage and adds its size to the user's quota.
+	 * The file is written from this instance, workspace module may run in another instance (pod)
+	 * that cannot read this local file. The original file id is kept unless it is already used.
+	 *
+	 * @return the storage write result ("status", "_id", ...), like the workspace "importDocument" action
+	 */
+	public Future<JsonObject> importFile(FileSystem fs, String filePath, String oldFileId, String userId)
+	{
+		final Promise<JsonObject> written = Promise.promise();
+		if (oldFileId == null || oldFileId.trim().isEmpty()) {
+			storage.writeFsFile(filePath, written::complete);
+		} else {
+			storage.fileStats(oldFileId, stats -> {
+				if (stats.succeeded()) {
+					storage.writeFsFile(filePath, written::complete);
+				} else {
+					storage.writeFsFile(oldFileId, filePath, written::complete);
+				}
+			});
+		}
+		return written.future().onSuccess(writtenFile -> {
+			if ("ok".equals(writtenFile.getString("status"))) {
+				addFileSizeToQuota(fs, filePath, userId);
+			}
+		});
+	}
+
+	private void addFileSizeToQuota(FileSystem fs, String filePath, String userId)
+	{
+		fs.props(filePath, props -> {
+			if (props.failed()) {
+				log.warn("Could not read size of imported file " + filePath + ", user quota not updated", props.cause());
+				return;
+			}
+			updateUserQuota(userId, props.result().size(), DEFAULT_QUOTA_ALERT_THRESHOLD, res -> {
+				if (res.failed()) {
+					log.warn("Could not update quota of user " + userId + " after file import", res.cause());
+				}
+			});
+		});
 	}
 
 	public void addThumbnails(JsonObject document, JsonObject thumbnails, Handler<AsyncResult<Message<JsonObject>>> handler)
